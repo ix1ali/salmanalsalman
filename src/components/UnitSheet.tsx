@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
-import { KeyVal, Sheet, TextArea, useConfirm } from "./ui";
+import { KeyVal, Money, Sheet, TextArea, useConfirm } from "./ui";
 import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { ContractForm, PaymentForm, UnitForm } from "./forms";
@@ -51,8 +51,8 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
       update((d) => {
         const u = d.units.find((x) => x.id === unit.id);
         if (u) { u.flagged = false; u.flagNote = undefined; u.flaggedAt = undefined; }
-      }, { action: "إزالة تنبيه", detail: `شقة ${unit.number}`, actor: user?.username });
-      toast("تم شيل التنبيه");
+      }, { action: "إزالة تنبيه", detail: `الوحدة ${unit.number}`, actor: user?.username });
+      toast("تم إزالة التنبيه");
     } else {
       setFlagText("");
       setFlagOpen(true);
@@ -60,25 +60,25 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   };
 
   const saveFlag = () => {
-    if (!flagText.trim()) return toast("اكتب سبب التنبيه", "error");
+    if (!flagText.trim()) return toast("يرجى كتابة سبب التنبيه", "error");
     update((d) => {
       const u = d.units.find((x) => x.id === unit.id);
       if (u) { u.flagged = true; u.flagNote = flagText.trim(); u.flaggedAt = new Date().toISOString(); }
     }, { action: "تعليم شقة", detail: `${unit.number} — ${flagText.trim()}`, actor: user?.username });
-    toast("تم تعليم الشقة");
+    toast("تمت إضافة الملاحظة");
     setFlagOpen(false);
   };
 
   const endContract = async () => {
     if (!contract) return;
-    if (!(await confirm("إنهاء العقد", `تصير الشقة ${unit.number} فاضية. متأكد؟`))) return;
+    if (!(await confirm("إنهاء العقد", `تصير الشقة ${unit.number} شاغرة. متأكد؟`))) return;
     update((d) => {
       const c = d.contracts.find((x) => x.id === contract.id);
       if (c) c.status = "terminated";
       const u = d.units.find((x) => x.id === unit.id);
       if (u) u.status = "vacant";
-    }, { action: "إنهاء عقد", detail: `شقة ${unit.number}`, actor: user?.username });
-    toast("انتهى العقد");
+    }, { action: "إنهاء عقد", detail: `الوحدة ${unit.number}`, actor: user?.username });
+    toast("تم إنهاء العقد");
   };
 
   const renew = async (months: number) => {
@@ -94,7 +94,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   };
 
   const removeUnit = async () => {
-    if (!(await confirm("حذف الشقة", `يتم حذف الشقة ${unit.number} وكل عقودها ودفعاتها.`))) return;
+    if (!(await confirm("حذف الوحدة", `يتم حذف الوحدة ${unit.number} وكل عقودها ودفعاتها.`))) return;
     update((d) => {
       d.units = d.units.filter((u) => u.id !== unit.id);
       d.contracts = d.contracts.filter((c) => c.unitId !== unit.id);
@@ -141,7 +141,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             ["المساحة", unit.area ? `${unit.area}م²` : "—"],
             ["غرف", String(unit.rooms ?? "—")],
             ["حمام", String(unit.bathrooms ?? "—")],
-            ["الإيجار", KWD(unit.baseRent, false)],
+            ["الإيجار", KWD(unit.baseRent)],
           ].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2 text-center">
               <p className="text-[13px] font-extrabold tabular-nums">{v}</p>
@@ -175,11 +175,11 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           </div>
         ) : (
           <div className="card mb-3 flex flex-col items-center p-4 text-center">
-            <p className="text-[14px] font-extrabold">الشقة فاضية</p>
-            <p className="mt-0.5 text-[12px] text-[var(--muted)]">ما فيها مستأجر حاليًا</p>
+            <p className="text-[14px] font-extrabold">الوحدة شاغرة</p>
+            <p className="mt-0.5 text-[12px] text-[var(--muted)]">لا يوجد عقد ساري على هذه الوحدة</p>
             {allow("contracts.edit") && (
               <button className="btn btn-primary btn-sm mt-3" onClick={() => setNewContract(true)}>
-                <Icon name="plus" size={14} /> تأجير الشقة
+                <Icon name="plus" size={14} /> إنشاء عقد إيجار
               </button>
             )}
           </div>
@@ -215,7 +215,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {contract && allow("finance.view") && (
           <div className="card mb-3 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[13px] font-extrabold">إيجار {monthAr(thisPeriod())}</p>
+              <p className="text-[13px] font-extrabold">إيجارات {monthAr(thisPeriod())}</p>
               <span
                 className="chip"
                 style={
@@ -224,7 +224,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                     : { background: "var(--gold-050)", color: "var(--gold-600)" }
                 }
               >
-                {thisMonthPaid ? "مدفوع" : "ما دفع"}
+                {thisMonthPaid ? "مدفوع" : "لم يُسدَّد"}
               </span>
             </div>
 
@@ -258,7 +258,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                       <Icon name="check" size={14} className="shrink-0 text-[var(--ok)]" />
                       <span className="flex-1">{monthAr(p.period)}</span>
                       <span className="text-[11px] text-[var(--muted)]">{methodLabel[p.method]}</span>
-                      <span className="font-extrabold tabular-nums">{KWD(p.amount, false)}</span>
+                      <Money v={p.amount} size="sm" />
                     </li>
                   ))}
                 </ul>
@@ -292,10 +292,10 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             </span>
             <span className="flex-1">
               <span className="block text-[13.5px] font-extrabold">
-                {unit.flagged ? "شيل التنبيه" : "علّم الشقة بتنبيه"}
+                {unit.flagged ? "إزالة التنبيه" : "إضافة ملاحظة تنبيه"}
               </span>
               <span className="block text-[11.5px] text-[var(--muted)]">
-                {unit.flagged ? "ترجع الشقة لحالتها الطبيعية" : "تظهر بالأحمر في المخطط مع سبب التنبيه"}
+                {unit.flagged ? "تعود الوحدة إلى حالتها الطبيعية" : "تظهر الوحدة بالأحمر في القائمة مع سبب التنبيه"}
               </span>
             </span>
           </button>
@@ -309,7 +309,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
               className="flex w-full items-center gap-2.5 p-3 text-right"
             >
               <Icon name="folder" size={17} className="text-[var(--muted)]" />
-              <span className="flex-1 text-[13.5px] font-extrabold">مستندات الشقة</span>
+              <span className="flex-1 text-[13.5px] font-extrabold">مستندات الوحدة</span>
               <Icon
                 name="chevronDown"
                 size={16}
@@ -329,7 +329,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {allow("units.edit") && (
           <div className="flex gap-2">
             <button className="btn btn-ghost btn-sm flex-1" onClick={() => setEditing(true)}>
-              <Icon name="edit" size={14} /> تعديل بيانات الشقة
+              <Icon name="edit" size={14} /> تعديل بيانات الوحدة
             </button>
             <button className="btn btn-danger btn-sm" onClick={removeUnit}>
               <Icon name="trash" size={14} /> حذف
@@ -353,7 +353,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             </div>
           }
         >
-          <p className="mb-2 text-[13px] text-[var(--muted)]">وش السبب؟ يظهر التنبيه على الشقة بالأحمر.</p>
+          <p className="mb-2 text-[13px] text-[var(--muted)]">ما السبب؟ تظهر الوحدة بالأحمر في قائمة الشقق.</p>
           <TextArea
             value={flagText}
             onChange={(e) => setFlagText(e.target.value)}
@@ -373,7 +373,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
       {renewOpen && contract && (
         <Sheet open onClose={() => setRenewOpen(false)} title="تجديد العقد">
           <p className="mb-3 text-[13px] text-[var(--muted)]">
-            العقد ينتهي {dateShort(contract.endDate)}. كم شهر تبي تمدد؟
+            العقد ينتهي {dateShort(contract.endDate)}. اختر مدة التمديد المطلوبة.
           </p>
           <div className="grid grid-cols-3 gap-2">
             {[6, 12, 24].map((m) => (

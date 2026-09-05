@@ -46,7 +46,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         loaded = null;
       }
       // ترقية المخطط: البيانات الأقدم من الإصدار الحالي تُبنى من جديد
-      if (!loaded || !loaded.users?.length || (loaded.version ?? 1) < 2) loaded = await buildSeed();
+      if (!loaded || !loaded.users?.length || (loaded.version ?? 1) < 3) loaded = await buildSeed();
       if (cancelled) return;
       setData(loaded);
       setActive(localStorage.getItem(BKEY) || "all");

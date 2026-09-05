@@ -28,15 +28,15 @@ export default function FlagsPage() {
     update((d) => {
       const u = d.units.find((x) => x.id === id);
       if (u) { u.flagged = false; u.flagNote = undefined; u.flaggedAt = undefined; }
-    }, { action: "إزالة تنبيه", detail: `شقة ${number}`, actor: user?.username });
-    toast("تم شيل التنبيه");
+    }, { action: "إزالة تنبيه", detail: `الوحدة ${number}`, actor: user?.username });
+    toast("تم إزالة التنبيه");
   };
 
   return (
     <div className="space-y-3">
       <PageHeader
         title="التنبيهات"
-        subtitle={`${num(flagged.length)} شقة عليها تنبيه`}
+        subtitle={`${num(flagged.length)} وحدة عليها ملاحظة`}
         icon="alert"
       />
 
@@ -57,7 +57,7 @@ export default function FlagsPage() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-extrabold text-[#b3303b]">{u.flagNote}</span>
                     <span className="block text-[11.5px] text-[var(--muted)]">
-                      {b?.name} · {t?.name ?? "فاضية"} · منذ {dateShort(u.flaggedAt)}
+                      {b?.name} · {t?.name ?? "شاغرة"} · منذ {dateShort(u.flaggedAt)}
                     </span>
                   </span>
                   <Icon name="chevronLeft" size={16} className="mt-1 shrink-0 text-[var(--muted)]" />
@@ -68,7 +68,7 @@ export default function FlagsPage() {
                     className="w-full border-t border-[var(--line)] bg-[var(--surface-2)] py-2 text-[12.5px] font-extrabold text-[var(--ok)]"
                   >
                     <Icon name="check" size={14} className="ml-1 inline-block align-middle" />
-                    تم الحل — شيل التنبيه
+                    تمت المعالجة — إزالة التنبيه
                   </button>
                 )}
               </li>
@@ -78,8 +78,8 @@ export default function FlagsPage() {
       ) : (
         <Empty
           icon="checkCircle"
-          title="ما فيه أي تنبيه"
-          body="كل الشقق تمام. لتعليم شقة، افتحها من صفحة الشقق واضغط «علّم الشقة بتنبيه»."
+          title="لا توجد ملاحظات"
+          body="جميع الوحدات في وضع سليم. لإضافة ملاحظة، افتح الوحدة من صفحة الشقق واختر «إضافة ملاحظة تنبيه»."
         />
       )}
 

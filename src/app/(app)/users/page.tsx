@@ -29,16 +29,16 @@ export default function UsersPage() {
   }
 
   const toggleActive = async (u: User) => {
-    if (u.id === user?.id) return toast("لا يمكنك إيقاف حسابك", "error");
+    if (u.id === user?.id) return toast("لا يمكنك إيقاف حسابك الشخصي", "error");
     if (!(await confirm(u.active ? "إيقاف الحساب" : "تفعيل الحساب", `${u.displayName} (${u.username})`, u.active))) return;
     update((d) => { const t = d.users.find((x) => x.id === u.id); if (t) t.active = !t.active; },
       { action: u.active ? "إيقاف مستخدم" : "تفعيل مستخدم", detail: u.username, actor: user?.username });
   };
 
   const remove = async (u: User) => {
-    if (u.id === user?.id) return toast("لا يمكنك حذف حسابك", "error");
+    if (u.id === user?.id) return toast("لا يمكنك حذف حسابك الشخصي", "error");
     if (data.users.filter((x) => x.role === "admin" && x.active).length <= 1 && u.role === "admin")
-      return toast("لازم يبقى مدير واحد على الأقل", "error");
+      return toast("يجب بقاء مدير واحد على الأقل", "error");
     if (!(await confirm("حذف المستخدم", `سيتم حذف حساب ${u.displayName} نهائيًا.`))) return;
     update((d) => { d.users = d.users.filter((x) => x.id !== u.id); },
       { action: "حذف مستخدم", detail: u.username, actor: user?.username });

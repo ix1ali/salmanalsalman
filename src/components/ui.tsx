@@ -2,6 +2,25 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import { Icon, type IconName } from "./Icons";
+import { amount } from "@/lib/format";
+
+/* -------------------------------- Money -------------------------------- */
+
+/**
+ * كل مبلغ مالي في النظام يمر من هنا، فيظهر دائمًا مصحوبًا بـ «د.ك»
+ * ليُميَّز عن الأرقام العادية (عدد الشقق، عدد الأشهر…).
+ */
+export function Money({
+  v, className = "", size = "md", tone,
+}: { v: number; className?: string; size?: "sm" | "md" | "lg" | "xl"; tone?: string }) {
+  const s = { sm: "text-[12px]", md: "text-[13.5px]", lg: "text-[18px]", xl: "text-[26px]" }[size];
+  return (
+    <span className={`inline-flex items-baseline gap-1 whitespace-nowrap ${s} ${className}`} style={tone ? { color: tone } : undefined}>
+      <span className="font-extrabold tabular-nums">{amount(v)}</span>
+      <span className="text-[0.72em] font-bold opacity-65">د.ك</span>
+    </span>
+  );
+}
 
 /* ------------------------------- Section ------------------------------- */
 

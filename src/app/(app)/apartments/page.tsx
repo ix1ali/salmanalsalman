@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { tenantOfUnit } from "@/lib/selectors";
 import { KWD, kindLabel, num } from "@/lib/format";
-import { Empty, PageHeader, SearchBox } from "@/components/ui";
+import { Empty, Money, PageHeader, SearchBox } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import UnitSheet from "@/components/UnitSheet";
 import { BulkUnitsForm, FloorForm, UnitForm } from "@/components/forms";
@@ -68,8 +68,8 @@ export default function ApartmentsPage() {
     return (
       <Empty
         icon="building"
-        title="ما فيه عمارات"
-        body="أضف عمارتك الأولى."
+        title="لا توجد عقارات مسجّلة"
+        body="أضف أول عقار للبدء."
         action={<a href="/buildings" className="btn btn-primary"><Icon name="plus" size={16} /> إضافة عمارة</a>}
       />
     );
@@ -114,8 +114,8 @@ export default function ApartmentsPage() {
       {/* دليل مختصر */}
       <div className="flex items-center justify-center gap-4 rounded-xl bg-[var(--surface)] py-2 text-[12px] font-bold shadow-[var(--sh-1)]">
         <Legend color={UNIT_COLOR.occupied} label="مؤجرة" n={counts.occupied} />
-        <Legend color={UNIT_COLOR.vacant} label="فاضية" n={counts.vacant} />
-        <Legend color={UNIT_COLOR.flagged} label="عليها تنبيه" n={counts.flagged} />
+        <Legend color={UNIT_COLOR.vacant} label="شاغرة" n={counts.vacant} />
+        <Legend color={UNIT_COLOR.flagged} label="عليها ملاحظة" n={counts.flagged} />
       </div>
 
       {/* الأدوار */}
@@ -166,7 +166,7 @@ export default function ApartmentsPage() {
                       {shown.map((u) => <UnitCard key={u.id} unit={u} onOpen={setOpenUnit} />)}
                     </div>
                   ) : (
-                    <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">ما فيه وحدات في هذا الدور</p>
+                    <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">لا توجد وحدات في هذا الدور</p>
                   )}
                 </div>
               )}
@@ -175,7 +175,7 @@ export default function ApartmentsPage() {
         })}
       </div>
 
-      {matches && matches.size === 0 && <Empty icon="search" title="ما فيه نتائج" />}
+      {matches && matches.size === 0 && <Empty icon="search" title="لا توجد نتائج مطابقة" />}
 
       <UnitSheet unitId={openUnit} onClose={() => setOpenUnit(null)} />
 
@@ -217,11 +217,11 @@ function UnitCard({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }
       )}
       <span className="display text-[20px] leading-none">{unit.number}</span>
       <span className="mt-1 line-clamp-1 text-[11px] text-[var(--muted)]">
-        {tenant?.name ?? (unit.kind === "apartment" ? "فاضية" : kindLabel[unit.kind])}
+        {tenant?.name ?? (unit.kind === "apartment" ? "شاغرة" : kindLabel[unit.kind])}
       </span>
       {allow("finance.view") && (
         <span className="text-[12px] font-extrabold tabular-nums" style={{ color: c }}>
-          {KWD(unit.baseRent, false)} د.ك
+          <Money v={unit.baseRent} size="sm" tone={c} />
         </span>
       )}
     </button>
@@ -230,9 +230,9 @@ function UnitCard({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }
 
 function AddMenu({ onClose, onPick }: { onClose: () => void; onPick: (k: "single" | "bulk" | "floor") => void }) {
   const items: [("single" | "bulk" | "floor"), string, string, string][] = [
-    ["single", "door", "شقة واحدة", "رقمها ومساحتها وإيجارها"],
-    ["bulk", "box", "عدة شقق مرة وحدة", "مثلاً ١٢ شقة في دور"],
-    ["floor", "layers", "دور جديد", "أضف دور للعمارة"],
+    ["single", "door", "وحدة واحدة", "بياناتها ومساحتها وقيمة الإيجار"],
+    ["bulk", "box", "مجموعة وحدات", "مثال: اثنتا عشرة شقة في دور واحد"],
+    ["floor", "layers", "دور جديد", "إضافة دور جديد إلى العقار"],
   ];
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center" onClick={onClose}>
@@ -241,7 +241,7 @@ function AddMenu({ onClose, onPick }: { onClose: () => void; onPick: (k: "single
         className="anim-sheet relative w-full rounded-t-[26px] bg-white p-4 shadow-[var(--sh-3)] sm:max-w-sm sm:rounded-[24px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="mb-3 text-center text-[15px] font-extrabold">وش تبي تضيف؟</p>
+        <p className="mb-3 text-center text-[15px] font-extrabold">ما الذي تريد إضافته؟</p>
         <div className="space-y-2">
           {items.map(([k, icon, title, sub]) => (
             <button

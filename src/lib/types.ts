@@ -39,7 +39,8 @@ export interface Building {
   area: string;          // المنطقة
   block: string;         // قطعة
   street: string;        // شارع
-  buildingNo: string;    // رقم القسيمة / المبنى
+  buildingNo: string;    // رقم العمارة
+  parcel?: string;       // رقم القسيمة
   ownerName: string;
   paciNo?: string;
   landArea?: number;
@@ -104,6 +105,14 @@ export interface Contract {
   tenantId: string;
   startDate: string;
   endDate: string;
+  /** تاريخ أول عقد للمستأجر — يبقى ثابتًا مع كل تجديد */
+  firstRentedAt?: string;
+  /** تاريخ تحرير العقد */
+  signedAt?: string;
+  /** مدة العقد كما تُكتب في النموذج (سنة، ستة أشهر…) */
+  durationText?: string;
+  /** عدد الساكنين المسموح به في العين */
+  occupants?: number;
   rent: number;
   deposit: number;
   /** يوم الاستحقاق من كل شهر */
@@ -126,7 +135,10 @@ export interface Payment {
   amount: number;
   paidAt: string;
   method: PayMethod;
+  /** رقم الشيك أو مرجع العملية */
   reference?: string;
+  /** اسم البنك المسحوب عليه الشيك */
+  bank?: string;
   notes?: string;
   createdBy: string;
   createdAt: string;
@@ -182,9 +194,19 @@ export interface AppData {
   audit: AuditEntry[];
   settings: {
     orgName: string;
+    /** الاسم الكامل للمالك كما يظهر في العقود */
+    ownerFullName: string;
     currency: string;
     sessionMinutes: number;
     reminderDaysBeforeDue: number;
     contractAlertDays: number;
+    /** أول شهر تُحتسب منه المتأخرات (YYYY-MM) — ما قبله لا يُحاسب عليه */
+    trackingStartPeriod: string;
+    /** يوم استحقاق الإيجار من كل شهر */
+    dueDay: number;
+    /** الغرامة الإدارية عند التأخر عن السداد */
+    lateFee: number;
+    /** أجرة المشرف الفني الشهرية */
+    supervisorFee: number;
   };
 }

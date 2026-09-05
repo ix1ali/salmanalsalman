@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, kpis, scope } from "@/lib/selectors";
-import { KWD, dateShort, monthAr, num, pct, thisPeriod } from "@/lib/format";
-import { Progress } from "@/components/ui";
+import { KWD, dateShort, monthAr, monthsLabel, num, pct, thisPeriod } from "@/lib/format";
+import { Money, Progress } from "@/components/ui";
 import { Icon, type IconName } from "@/components/Icons";
 
 export default function DashboardPage() {
@@ -37,7 +37,7 @@ export default function DashboardPage() {
     <div className="space-y-3">
       {/* الشقق */}
       <div className="anim-up overflow-hidden rounded-[22px] bg-[var(--primary)] p-5 text-white">
-        <p className="text-[12.5px] text-white/70">أهلًا {user?.displayName}</p>
+        <p className="text-[12.5px] text-white/70">مرحبًا {user?.displayName}</p>
         <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-bold text-white/90">
           <Icon name="building" size={14} /> {buildingName}
         </p>
@@ -45,11 +45,11 @@ export default function DashboardPage() {
         <div className="mt-4 flex items-end justify-between">
           <div>
             <p className="display text-4xl leading-none">{num(k.occupied)}</p>
-            <p className="mt-1 text-[12px] text-white/70">شقة مؤجرة من {num(k.totalUnits)}</p>
+            <p className="mt-1 text-[12px] text-white/70">وحدة مؤجرة من إجمالي {num(k.totalUnits)}</p>
           </div>
           <div className="text-left">
             <p className="display text-2xl leading-none text-[var(--gold)]">{num(k.vacant)}</p>
-            <p className="mt-1 text-[12px] text-white/70">فاضية</p>
+            <p className="mt-1 text-[12px] text-white/70">شاغرة</p>
           </div>
         </div>
 
@@ -63,17 +63,17 @@ export default function DashboardPage() {
       {allow("finance.view") && (
         <Link href="/finances" className="card card-lg block p-4 transition hover:shadow-[var(--sh-2)]">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">إيجار {monthAr(thisPeriod())}</p>
-            <span className="text-[12px] font-bold text-[var(--primary)]">افتح ‹</span>
+            <p className="text-[14px] font-extrabold">إيجارات {monthAr(thisPeriod())}</p>
+            <span className="text-[12px] font-bold text-[var(--primary)]">التفاصيل ‹</span>
           </div>
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="display text-[26px] leading-none text-[var(--ok)]">{KWD(k.collectedThisMonth, false)}</p>
-              <p className="mt-1 text-[12px] text-[var(--muted)]">تم تحصيله</p>
+              <Money v={k.collectedThisMonth} size="xl" tone="var(--ok)" />
+              <p className="mt-1 text-[12px] text-[var(--muted)]">المحصَّل</p>
             </div>
             <div className="text-left">
-              <p className="display text-[20px] leading-none text-[var(--gold-600)]">{KWD(remaining, false)}</p>
-              <p className="mt-1 text-[12px] text-[var(--muted)]">باقي</p>
+              <Money v={remaining} size="lg" tone="var(--gold-600)" />
+              <p className="mt-1 text-[12px] text-[var(--muted)]">المتبقي</p>
             </div>
           </div>
           <div className="mt-3">
@@ -109,8 +109,8 @@ export default function DashboardPage() {
             <Icon name="alert" size={19} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13.5px] font-extrabold">{num(k.flaggedUnits)} شقة عليها تنبيه</p>
-            <p className="text-[11.5px] text-[var(--muted)]">اضغط لعرضها</p>
+            <p className="text-[13.5px] font-extrabold">{num(k.flaggedUnits)} وحدة عليها ملاحظة</p>
+            <p className="text-[11.5px] text-[var(--muted)]">اضغط للاطلاع عليها</p>
           </div>
           <Icon name="chevronLeft" size={16} className="text-[var(--muted)]" />
         </Link>
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       {allow("finance.view") && ar.length > 0 && (
         <div className="card card-lg p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">ما دفعوا</p>
+            <p className="text-[14px] font-extrabold">لم يتم الدفع</p>
             <Link href="/finances?tab=arrears" className="text-[12px] font-bold text-[var(--primary)]">الكل ‹</Link>
           </div>
           <ul className="divide-y divide-[var(--line)]">
@@ -131,9 +131,9 @@ export default function DashboardPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-bold">{a.tenant?.name ?? "—"}</p>
-                  <p className="text-[11.5px] text-[var(--muted)]">{a.missing.length} شهر</p>
+                  <p className="text-[11.5px] text-[var(--muted)]">{monthsLabel(a.missing.length)}</p>
                 </div>
-                <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-[#b3303b]">{KWD(a.amount, false)}</span>
+                <Money v={a.amount} className="shrink-0" tone="#b3303b" />
               </li>
             ))}
           </ul>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
       {allow("contracts.view") && expiring.length > 0 && (
         <div className="card card-lg p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">عقود تنتهي قريب</p>
+            <p className="text-[14px] font-extrabold">عقود تقارب على الانتهاء</p>
             <Link href="/print" className="text-[12px] font-bold text-[var(--primary)]">طباعة ‹</Link>
           </div>
           <ul className="divide-y divide-[var(--line)]">

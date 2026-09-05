@@ -38,12 +38,15 @@ export interface Arrear {
 }
 
 /**
- * Unpaid months for every active contract, looking back at most 12 months
- * and never before the contract start.
+ * الأشهر غير المسدَّدة لكل عقد ساري.
+ *
+ * لا تُحتسب أي متأخرات قبل `settings.trackingStartPeriod` — وهو الشهر الذي بدأ
+ * فيه استخدام النظام — حتى لا تظهر مطالبات عن فترة كانت تُدار على الورق.
  */
-export function arrears(data: AppData, s: Scope, lookback = 12): Arrear[] {
+export function arrears(data: AppData, s: Scope, lookback = 24): Arrear[] {
   const now = new Date();
-  const periods = lastPeriods(lookback, now);
+  const from = data.settings.trackingStartPeriod ?? "0000-00";
+  const periods = lastPeriods(lookback, now).filter((p) => p >= from);
   const paidKey = new Set(s.payments.map((p) => `${p.contractId ?? p.unitId}|${p.period}`));
   const unitById = new Map(data.units.map((u) => [u.id, u]));
   const tenantById = new Map(data.tenants.map((t) => [t.id, t]));

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, lastPeriods, scope } from "@/lib/selectors";
-import { KWD, dateShort, expenseLabel, methodLabel, monthAr, num, pct, thisPeriod } from "@/lib/format";
-import { Chip, Empty, PageHeader, Progress, SearchBox, Segmented, Select, useConfirm } from "@/components/ui";
+import { KWD, dateShort, expenseLabel, methodLabel, monthAr, monthsLabel, num, pct, thisPeriod } from "@/lib/format";
+import { Chip, Empty, Money, PageHeader, Progress, SearchBox, Segmented, Select, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import { ExpenseForm, PaymentForm } from "@/components/forms";
 import type { Expense } from "@/lib/types";
@@ -93,15 +93,15 @@ export default function FinancesPage() {
   return (
     <div className="space-y-4">
       {dialog}
-      <PageHeader title="الإيجارات" subtitle="مين دفع ومين ما دفع" icon="wallet" />
+      <PageHeader title="الإيجارات" subtitle="متابعة تحصيل الإيجارات" icon="wallet" />
 
       <Segmented
         value={tab}
         onChange={setTab}
         options={[
-          { value: "collect", label: "هذا الشهر" },
+          { value: "collect", label: "الشهر الحالي" },
           { value: "expenses", label: "المصاريف" },
-          { value: "arrears", label: "ما دفعوا", count: ar.length },
+          { value: "arrears", label: "لم يتم الدفع", count: ar.length },
         ]}
       />
 
@@ -120,12 +120,12 @@ export default function FinancesPage() {
           <div className="card card-lg p-4">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[12px] text-[var(--muted)]">تم تحصيله</p>
-                <p className="display text-[26px] leading-none">{KWD(totals.got, false)}</p>
+                <p className="text-[12px] text-[var(--muted)]">المحصَّل</p>
+                <Money v={totals.got} size="xl" />
               </div>
               <div className="text-left">
-                <p className="text-[12px] text-[var(--muted)]">المطلوب</p>
-                <p className="display text-[18px] leading-none text-[var(--muted)]">{KWD(totals.due, false)}</p>
+                <p className="text-[12px] text-[var(--muted)]">إجمالي المستحق</p>
+                <Money v={totals.due} size="lg" className="text-[var(--muted)]" />
               </div>
             </div>
             <div className="mt-3">
@@ -133,7 +133,7 @@ export default function FinancesPage() {
             </div>
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
               <p className="text-[12.5px] font-bold" style={{ color: totals.left ? "var(--gold-600)" : "var(--ok)" }}>
-                {totals.left ? `باقي ${KWD(totals.left)}` : "الكل دفع 👌"}
+                {totals.left ? `المتبقي ${KWD(totals.left)}` : "تم تحصيل كامل الإيجارات"}
               </p>
               <p className="text-[12px] text-[var(--muted)]">
                 دفع {num(totals.paidCount)} من {num(totals.count)} شقة
@@ -147,7 +147,7 @@ export default function FinancesPage() {
               onClick={() => setOnlyUnpaid((v) => !v)}
               className={`btn btn-sm shrink-0 ${onlyUnpaid ? "btn-primary" : "btn-ghost"}`}
             >
-              <Icon name="filter" size={14} /> اللي ما دفع
+              <Icon name="filter" size={14} /> غير المسدَّد
             </button>
           </div>
 
@@ -170,7 +170,7 @@ export default function FinancesPage() {
                     </p>
                   </div>
                   {r.payment ? (
-                    <Chip tone="green" icon="check">{KWD(r.payment.amount, false)}</Chip>
+                    <Chip tone="green" icon="check">{KWD(r.payment.amount)}</Chip>
                   ) : allow("receipts.create") ? (
                     <button
                       className="btn btn-gold btn-sm shrink-0"
@@ -179,13 +179,13 @@ export default function FinancesPage() {
                       <Icon name="plus" size={14} /> تسجيل
                     </button>
                   ) : (
-                    <Chip tone="gold">ما دفع</Chip>
+                    <Chip tone="gold">لم يُسدَّد</Chip>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <Empty icon="checkCircle" title={onlyUnpaid ? "الكل دفع هذا الشهر" : "ما فيه عقود سارية لهذا الشهر"} />
+            <Empty icon="checkCircle" title={onlyUnpaid ? "تم تحصيل كامل إيجارات الشهر" : "لا توجد عقود سارية لالشهر الحالي"} />
           )}
         </>
       )}
@@ -196,7 +196,7 @@ export default function FinancesPage() {
           <div className="card card-lg flex items-center justify-between p-4">
             <div>
               <p className="text-[12px] text-[var(--muted)]">مصاريف {monthAr(period)}</p>
-              <p className="display text-[24px] leading-none text-[var(--gold-600)]">{KWD(expenseTotal, false)}</p>
+              <Money v={expenseTotal} size="xl" tone="var(--gold-600)" />
             </div>
             {allow("finance.edit") && (
               <button className="btn btn-primary btn-sm" onClick={() => setAddExpense(true)}>
@@ -221,7 +221,7 @@ export default function FinancesPage() {
                     </p>
                   </div>
                   <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-[var(--gold-600)]">
-                    {KWD(e.amount, false)}
+                    <Money v={e.amount} tone="var(--gold-600)" />
                   </span>
                   {allow("finance.edit") && (
                     <div className="flex shrink-0 gap-1">
@@ -239,7 +239,7 @@ export default function FinancesPage() {
           ) : (
             <Empty
               icon="wallet"
-              title={`ما فيه مصاريف في ${monthAr(period)}`}
+              title={`لا توجد مصاريف في ${monthAr(period)}`}
               action={allow("finance.edit") ? <button className="btn btn-primary btn-sm" onClick={() => setAddExpense(true)}><Icon name="plus" size={14} /> إضافة</button> : undefined}
             />
           )}
@@ -251,9 +251,9 @@ export default function FinancesPage() {
         <>
           <div className="card card-lg flex items-center justify-between p-4">
             <div>
-              <p className="text-[12px] text-[var(--muted)]">إجمالي اللي ما تحصّل</p>
+              <p className="text-[12px] text-[var(--muted)]">إجمالي المتأخرات</p>
               <p className="display text-[26px] leading-none text-[#b3303b]">
-                {KWD(ar.reduce((a, x) => a + x.amount, 0), false)}
+                <Money v={ar.reduce((a, x) => a + x.amount, 0)} size="xl" tone="#b3303b" />
               </p>
             </div>
             <Chip tone="rose">{num(ar.length)} مستأجر</Chip>
@@ -271,10 +271,10 @@ export default function FinancesPage() {
                       <p className="truncate text-[13px] font-extrabold">{a.tenant?.name ?? "—"}</p>
                       <p className="truncate text-[11.5px] text-[var(--muted)]">
                         {a.missing.map(monthAr).slice(0, 3).join("، ")}
-                        {a.missing.length > 3 ? ` +${a.missing.length - 3}` : ""}
+                        {a.missing.length > 3 ? ` وغيرها (${monthsLabel(a.missing.length)})` : ""}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#b3303b]">{KWD(a.amount, false)}</span>
+                    <Money v={a.amount} className="shrink-0" tone="#b3303b" />
                   </div>
                   {a.tenant && allow("tenants.contact") && (
                     <div className="mt-2 flex gap-2">
@@ -302,7 +302,7 @@ export default function FinancesPage() {
               ))}
             </ul>
           ) : (
-            <Empty icon="checkCircle" title="ما فيه متأخرات" body="كل المستأجرين منتظمين." />
+            <Empty icon="checkCircle" title="لا توجد متأخرات" body="جميع المستأجرين منتظمون في السداد." />
           )}
         </>
       )}

@@ -3,15 +3,24 @@ import type { ExpenseCategory, PayMethod, Role, UnitKind, UnitStatus, DocKind, C
 // أرقام لاتينية مع نصوص عربية — الأسهل قراءةً في الاستخدام التجاري بالكويت
 const AR = "ar-KW-u-nu-latn";
 
-export const KWD = (n: number, withSymbol = true) => {
-  const v = (Number.isFinite(n) ? n : 0).toLocaleString(AR, {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
-  return withSymbol ? `${v} د.ك` : v;
+/** الرقم فقط بثلاث خانات عشرية — يُستخدم مع مكوّن Money الذي يضيف «د.ك». */
+export const amount = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString(AR, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+/** مبلغ مالي كنص كامل — دائمًا مصحوب بـ «د.ك» لتمييزه عن الأرقام العادية. */
+export const KWD = (n: number) => `${amount(n)} د.ك`;
+
+/** تفريق المبلغ إلى دنانير وفلوس كما في نموذج الوصل الورقي. */
+export const dinarsFils = (n: number) => {
+  const v = Math.max(0, Math.round((Number.isFinite(n) ? n : 0) * 1000));
+  return { dinars: Math.floor(v / 1000), fils: v % 1000 };
 };
 
 export const num = (n: number) => (Number.isFinite(n) ? n : 0).toLocaleString(AR);
+
+/** «شهر واحد / شهران / 5 أشهر» بدل «1 شهر». */
+export const monthsLabel = (n: number) =>
+  n === 1 ? "شهر واحد" : n === 2 ? "شهران" : n <= 10 ? `${num(n)} أشهر` : `${num(n)} شهرًا`;
 
 export const pct = (n: number) => `${Math.round(n)}%`;
 
@@ -64,13 +73,13 @@ export const roleLabel: Record<Role, string> = {
 };
 
 export const roleDesc: Record<Role, string> = {
-  admin: "يشوف ويعدل كل شيء",
-  viewer: "يشوف بس، ما يعدل",
-  guard: "الشقق والتنبيهات فقط",
+  admin: "صلاحية كاملة على النظام",
+  viewer: "اطّلاع فقط دون تعديل",
+  guard: "الوحدات والملاحظات فقط",
 };
 
 export const statusLabel: Record<UnitStatus, string> = {
-  occupied: "مؤجرة", vacant: "فاضية",
+  occupied: "مؤجرة", vacant: "شاغرة",
 };
 
 export const kindLabel: Record<UnitKind, string> = {
@@ -78,7 +87,7 @@ export const kindLabel: Record<UnitKind, string> = {
 };
 
 export const methodLabel: Record<PayMethod, string> = {
-  cash: "كاش", knet: "كي نت", transfer: "تحويل", cheque: "شيك", link: "رابط دفع",
+  cash: "نقدًا", knet: "كي نت", transfer: "تحويل بنكي", cheque: "شيك", link: "رابط دفع",
 };
 
 export const expenseLabel: Record<ExpenseCategory, string> = {
@@ -94,8 +103,38 @@ export const docLabel: Record<DocKind, string> = {
 };
 
 export const contractStatusLabel: Record<ContractStatus, string> = {
-  active: "ساري", expired: "منتهي", terminated: "مفسوخ", upcoming: "قادم",
+  active: "ساري", expired: "منتهي", terminated: "مفسوخ", upcoming: "لم يبدأ بعد",
 };
+
+/** المبلغ كتابةً بالحروف — يُطبع في الوصل والعقد. */
+export function amountInWords(n: number): string {
+  const v = Math.floor(Math.max(0, n));
+  if (v === 0) return "صفر";
+  const ones = ["","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة","عشرة",
+    "أحد عشر","اثنا عشر","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"];
+  const tens = ["","","عشرون","ثلاثون","أربعون","خمسون","ستون","سبعون","ثمانون","تسعون"];
+  const hundreds = ["","مئة","مئتان","ثلاثمئة","أربعمئة","خمسمئة","ستمئة","سبعمئة","ثمانمئة","تسعمئة"];
+
+  const under1000 = (x: number): string => {
+    const parts: string[] = [];
+    const h = Math.floor(x / 100);
+    const rest = x % 100;
+    if (h) parts.push(hundreds[h]);
+    if (rest) {
+      if (rest < 20) parts.push(ones[rest]);
+      else {
+        const o = rest % 10, t = Math.floor(rest / 10);
+        parts.push(o ? `${ones[o]} و${tens[t]}` : tens[t]);
+      }
+    }
+    return parts.join(" و");
+  };
+
+  if (v < 1000) return under1000(v);
+  const th = Math.floor(v / 1000), rest = v % 1000;
+  const thWord = th === 1 ? "ألف" : th === 2 ? "ألفان" : th < 11 ? `${under1000(th)} آلاف` : `${under1000(th)} ألفًا`;
+  return rest ? `${thWord} و${under1000(rest)}` : thWord;
+}
 
 const ORDINAL = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس",
   "السابع", "الثامن", "التاسع", "العاشر", "الحادي عشر", "الثاني عشر"];

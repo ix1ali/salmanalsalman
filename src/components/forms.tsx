@@ -493,8 +493,10 @@ export function ContractForm({
     rent: contract?.rent ?? unitRent,
     deposit: contract?.deposit ?? unitRent,
     dueDay: contract?.dueDay ?? 1,
-    payMethod: (contract?.payMethod ?? "knet") as PayMethod,
-    terms: contract?.terms ?? "يلتزم المستأجر بسداد الإيجار في اليوم الأول من كل شهر ميلادي، والكهرباء والماء على المستأجر.",
+    payMethod: (contract?.payMethod ?? "cash") as PayMethod,
+    durationText: contract?.durationText ?? "سنة",
+    occupants: contract?.occupants ?? 0,
+    signedAt: contract?.signedAt ?? todayISO(),
   });
 
   const [nt, setNt] = useState({ name: "", civilId: "", phone: "", nationality: "" });
@@ -607,15 +609,26 @@ export function ContractForm({
         </Field>
         <Field label="الإيجار الشهري (د.ك)" required><TextInput type="number" value={f.rent} onChange={(e) => setF({ ...f, rent: +e.target.value })} /></Field>
         <Field label="التأمين (د.ك)"><TextInput type="number" value={f.deposit} onChange={(e) => setF({ ...f, deposit: +e.target.value })} /></Field>
-        <Field label="يوم الاستحقاق من كل شهر"><TextInput type="number" min={1} max={28} value={f.dueDay} onChange={(e) => setF({ ...f, dueDay: +e.target.value })} /></Field>
+        <Field label="يوم الاستحقاق من كل شهر" hint="حسب العقد المعتمد: قبل يوم 5">
+          <TextInput type="number" min={1} max={28} value={f.dueDay} onChange={(e) => setF({ ...f, dueDay: +e.target.value })} />
+        </Field>
+        <Field label="مدة العقد كتابةً" hint="تُطبع في العقد">
+          <TextInput value={f.durationText} onChange={(e) => setF({ ...f, durationText: e.target.value })} placeholder="سنة" />
+        </Field>
+        <Field label="عدد الساكنين المسموح به">
+          <TextInput type="number" min={0} max={20} value={f.occupants} onChange={(e) => setF({ ...f, occupants: +e.target.value })} />
+        </Field>
+        <Field label="تاريخ تحرير العقد">
+          <TextInput type="date" value={f.signedAt} onChange={(e) => setF({ ...f, signedAt: e.target.value })} />
+        </Field>
         <Field label="طريقة الدفع">
           <Select value={f.payMethod} onChange={(e) => setF({ ...f, payMethod: e.target.value as PayMethod })}>
             {(Object.keys(methodLabel) as PayMethod[]).map((m) => <option key={m} value={m}>{methodLabel[m]}</option>)}
           </Select>
         </Field>
-        <Field label="شروط العقد" className="sm:col-span-2">
-          <TextArea rows={4} value={f.terms} onChange={(e) => setF({ ...f, terms: e.target.value })} />
-        </Field>
+        <p className="sm:col-span-2 rounded-xl bg-[var(--surface-2)] p-3 text-[12px] leading-relaxed text-[var(--muted)]">
+          تُطبع بنود العقد المعتمدة لدى المكتب تلقائيًا مع كل عقد (تسعة عشر بندًا)، ولا حاجة لكتابتها هنا.
+        </p>
       </div>
     </Sheet>
   );
@@ -643,8 +656,9 @@ export function PaymentForm({
     period: presetPeriod ?? thisPeriod(),
     amount: contract?.rent ?? 0,
     paidAt: todayISO(),
-    method: (contract?.payMethod ?? "knet") as PayMethod,
+    method: (contract?.payMethod ?? "cash") as PayMethod,
     reference: "",
+    bank: "",
     notes: "",
   });
 
@@ -729,7 +743,12 @@ export function PaymentForm({
             {(Object.keys(methodLabel) as PayMethod[]).map((m) => <option key={m} value={m}>{methodLabel[m]}</option>)}
           </Select>
         </Field>
-        <Field label="مرجع / رقم عملية" className="sm:col-span-2"><TextInput value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} dir="ltr" /></Field>
+        <Field label={f.method === "cheque" ? "رقم الشيك" : "رقم العملية / المرجع"}>
+          <TextInput value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} dir="ltr" />
+        </Field>
+        <Field label="على بنك" hint="يُطبع في الوصل عند الدفع بشيك">
+          <TextInput value={f.bank} onChange={(e) => setF({ ...f, bank: e.target.value })} />
+        </Field>
         <Field label="ملاحظات" className="sm:col-span-2"><TextArea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
       </div>
     </Sheet>

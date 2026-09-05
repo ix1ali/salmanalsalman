@@ -3,8 +3,8 @@ import type { Unit } from "./types";
 /** ثلاثة ألوان فقط في كل النظام — واضحة من أول نظرة. */
 export const UNIT_COLOR = {
   occupied: "#1e8a5f",  // أخضر: مؤجرة
-  vacant: "#c9992e",    // ذهبي: فاضية
-  flagged: "#d64550",   // أحمر: عليها تنبيه
+  vacant: "#c9992e",    // ذهبي: شاغرة
+  flagged: "#d64550",   // أحمر: عليها ملاحظة
 } as const;
 
 export const unitColor = (u: Unit) =>

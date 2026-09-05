@@ -4,9 +4,24 @@ import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "@/lib/store";
 import { Icon, Logo } from "./Icons";
-import { KWD, dateShort, expenseLabel, methodLabel, monthAr, num, pct } from "@/lib/format";
-import type { Contract, Payment } from "@/lib/types";
+import {
+  KWD, amount, amountInWords, dateAr, dateShort, dinarsFils, expenseLabel,
+  methodLabel, monthAr, num, pct,
+} from "@/lib/format";
+import type { Contract, Payment, Unit } from "@/lib/types";
 import { arrears, scope } from "@/lib/selectors";
+
+const INK = "#0b2545";
+const NAVY = "#123a6b";
+const MUTED = "#7089a3";
+const LINE = "#cbd7e5";
+
+const WEEKDAY = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+const dayName = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "" : WEEKDAY[d.getDay()];
+};
 
 /* =========================== غلاف قابل للطباعة =========================== */
 
@@ -50,180 +65,338 @@ export function PrintOverlay({
 
 /* ============================== ترويسة عامة ============================== */
 
-function DocHeader({ title, subtitle, meta }: { title: string; subtitle?: string; meta?: React.ReactNode }) {
+function LetterHead({ title, en, meta }: { title: string; en?: string; meta?: React.ReactNode }) {
   const { data } = useStore();
   return (
-    <div className="mb-6 border-b-2 border-[#123a6b] pb-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Logo size={46} />
-          <div>
-            <p className="text-[17px] font-extrabold text-[#0b2545]">{data.settings.orgName}</p>
-            <p className="text-[12px] text-[#7089a3]">إدارة العقارات والإيجارات — دولة الكويت</p>
-          </div>
+    <div className="mb-5 flex items-start justify-between gap-4 border-b-2 pb-3" style={{ borderColor: NAVY }}>
+      <div className="flex items-center gap-3">
+        <Logo size={48} />
+        <div>
+          <p className="text-[17px] font-extrabold" style={{ color: INK }}>عقار / سلمان السلمان</p>
+          <p className="text-[11.5px]" style={{ color: MUTED }}>Real Estate / Salman AlSalman</p>
+          <p className="mt-0.5 text-[11.5px]" style={{ color: MUTED }}>{data.settings.orgName}</p>
         </div>
-        <div className="text-left">
-          <p className="text-[19px] font-extrabold text-[#123a6b]">{title}</p>
-          {subtitle && <p className="text-[12px] text-[#7089a3]">{subtitle}</p>}
-          {meta}
-        </div>
+      </div>
+      <div className="text-left">
+        <p className="text-[20px] font-extrabold" style={{ color: NAVY }}>{title}</p>
+        {en && <p className="text-[11.5px]" style={{ color: MUTED }}>{en}</p>}
+        {meta}
       </div>
     </div>
   );
 }
 
+const Line = ({ k, v, w = "" }: { k: string; v: React.ReactNode; w?: string }) => (
+  <span className={`inline-flex items-baseline gap-1.5 ${w}`}>
+    <span className="text-[12.5px] font-semibold" style={{ color: MUTED }}>{k}</span>
+    <span className="min-w-[70px] flex-1 border-b border-dotted px-1 text-[13px] font-bold" style={{ borderColor: LINE, color: INK }}>
+      {v || " "}
+    </span>
+  </span>
+);
+
 const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
-  <div className="flex justify-between gap-3 border-b border-dashed border-[#e4eaf2] py-1.5 text-[13px]">
-    <span className="font-semibold text-[#7089a3]">{k}</span>
-    <span className="font-bold text-[#0b2545]">{v}</span>
+  <div className="flex justify-between gap-3 border-b border-dashed py-1.5 text-[12.5px]" style={{ borderColor: "#e4eaf2" }}>
+    <span className="font-semibold" style={{ color: MUTED }}>{k}</span>
+    <span className="font-bold" style={{ color: INK }}>{v}</span>
   </div>
 );
 
-const Signatures = ({ a = "الطرف الأول (المالك / الوكيل)", b = "الطرف الثاني (المستأجر)" }) => (
+const Signatures = ({ a, b }: { a: string; b: string }) => (
   <div className="mt-10 grid grid-cols-2 gap-8 text-center text-[12.5px]">
     {[a, b].map((label) => (
       <div key={label}>
-        <p className="font-bold text-[#0b2545]">{label}</p>
-        <div className="mx-auto mt-10 w-4/5 border-b border-[#0b2545]" />
-        <p className="mt-1 text-[11px] text-[#7089a3]">الاسم والتوقيع</p>
+        <p className="font-bold" style={{ color: INK }}>{label}</p>
+        <div className="mx-auto mt-10 w-4/5 border-b" style={{ borderColor: INK }} />
+        <p className="mt-1 text-[11px]" style={{ color: MUTED }}>الاسم والتوقيع</p>
       </div>
     ))}
   </div>
 );
 
+function useUnitCtx(unitId: string) {
+  const { data } = useStore();
+  const unit = data.units.find((u) => u.id === unitId);
+  const floor = data.floors.find((f) => f.id === unit?.floorId);
+  const building = data.buildings.find((b) => b.id === unit?.buildingId);
+  return { unit, floor, building };
+}
+
 /* ================================ العقد ================================= */
 
+/**
+ * عقد الإيجار بنصّه المعتمد في المكتب — منقول حرفيًا من نموذج rent1.docm
+ * مع تعبئة بيانات العقد تلقائيًا.
+ */
 export function ContractDoc({ contract }: { contract: Contract }) {
   const { data } = useStore();
-  const unit = data.units.find((u) => u.id === contract.unitId);
   const tenant = data.tenants.find((t) => t.id === contract.tenantId);
-  const building = data.buildings.find((b) => b.id === contract.buildingId);
-  const floor = data.floors.find((f) => f.id === unit?.floorId);
-  const months = Math.max(
-    1,
-    Math.round((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (30.44 * 86400000))
-  );
+  const { unit, floor, building } = useUnitCtx(contract.unitId);
+  const owner = data.settings.ownerFullName;
+  const signed = contract.signedAt || contract.startDate;
 
   return (
     <>
-      <DocHeader
-        title="عقد إيجار"
-        subtitle={`رقم ${contract.no}`}
-        meta={<p className="mt-1 text-[11.5px] text-[#7089a3]">حرر بتاريخ {dateShort(contract.createdAt)}</p>}
-      />
+      <LetterHead title="عقد إيجار" en="Rent Contract" />
 
-      <p className="mb-4 text-[13px] leading-relaxed text-[#2a4361]">
-        إنه في يوم {dateShort(contract.startDate)} تم الاتفاق بين كل من الطرف الأول
-        <b> {building?.ownerName || data.settings.orgName} </b>
-        بصفته مالك/وكيل العقار، والطرف الثاني <b>{tenant?.name}</b> بصفته المستأجر، على تأجير الوحدة الموضحة بياناتها أدناه
-        وفق الشروط الآتية.
-      </p>
+      <div className="mb-4 flex flex-wrap gap-x-8 gap-y-2 text-[13px]">
+        <Line k="في الكويت اليوم :" v={dayName(signed)} />
+        <Line k="الموافق :" v={dateShort(signed)} />
+      </div>
 
-      <div className="grid gap-x-8 gap-y-0 sm:grid-cols-2">
-        <div>
-          <p className="mb-1 text-[13px] font-extrabold text-[#123a6b]">بيانات العقار</p>
-          <Row k="العمارة" v={building?.name ?? "—"} />
-          <Row k="المنطقة" v={`${building?.area ?? ""} ${building?.block ?? ""}`} />
-          <Row k="الشارع / القسيمة" v={`${building?.street ?? ""} — ${building?.buildingNo ?? ""}`} />
-          <Row k="الرقم الآلي" v={building?.paciNo ?? "—"} />
-          <Row k="الدور" v={floor?.name ?? "—"} />
-          <Row k="رقم الوحدة" v={unit?.number ?? "—"} />
-          <Row k="المساحة" v={unit?.area ? `${unit.area} م²` : "—"} />
-          <Row k="عدد الغرف" v={num(unit?.rooms ?? 0)} />
-          <Row k="عداد الكهرباء" v={unit?.meterNo ?? "—"} />
-        </div>
-        <div>
-          <p className="mb-1 text-[13px] font-extrabold text-[#123a6b]">بيانات المستأجر</p>
-          <Row k="الاسم" v={tenant?.name ?? "—"} />
-          <Row k="الرقم المدني" v={tenant?.civilId ?? "—"} />
-          <Row k="الجنسية" v={tenant?.nationality ?? "—"} />
-          <Row k="الهاتف" v={tenant?.phone ?? "—"} />
-          <Row k="جهة العمل" v={tenant?.workplace ?? "—"} />
+      <p className="mb-3 text-[13px] font-bold" style={{ color: INK }}>تحرر وتم الاتفاق بين كل من الطرفين</p>
 
-          <p className="mb-1 mt-4 text-[13px] font-extrabold text-[#123a6b]">بيانات العقد</p>
-          <Row k="مدة العقد" v={`${months} شهر`} />
-          <Row k="من" v={dateShort(contract.startDate)} />
-          <Row k="إلى" v={dateShort(contract.endDate)} />
-          <Row k="الإيجار الشهري" v={KWD(contract.rent)} />
-          <Row k="التأمين" v={KWD(contract.deposit)} />
-          <Row k="يوم الاستحقاق" v={`${contract.dueDay} من كل شهر`} />
-          <Row k="طريقة الدفع" v={methodLabel[contract.payMethod]} />
+      <div className="mb-4 rounded-lg border p-3" style={{ borderColor: LINE }}>
+        <p className="mb-1 text-[13px] font-extrabold" style={{ color: NAVY }}>الطرف الأول ( المؤجر )</p>
+        <p className="text-[13px] font-bold" style={{ color: INK }}>السيد / {owner}</p>
+        <p className="text-[12.5px]" style={{ color: MUTED }}>بصفته مالك العقار</p>
+      </div>
+
+      <div className="mb-4 rounded-lg border p-3" style={{ borderColor: LINE }}>
+        <p className="mb-2 text-[13px] font-extrabold" style={{ color: NAVY }}>الطرف الثاني ( المستأجر )</p>
+        <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+          <Line k="الاسم :" v={tenant?.name} />
+          <Line k="الرقم المدني :" v={tenant?.civilId} />
+          <Line k="الجنسية :" v={tenant?.nationality} />
+          <Line k="المهنة :" v={tenant?.workplace} />
+          <Line k="رقم الهاتف :" v={tenant?.phone} />
         </div>
       </div>
 
-      <div className="mt-6">
-        <p className="mb-2 text-[13px] font-extrabold text-[#123a6b]">الشروط والأحكام</p>
-        <ol className="list-inside list-decimal space-y-1.5 text-[12.5px] leading-relaxed text-[#2a4361]">
-          <li>{contract.terms || "يلتزم المستأجر بسداد الإيجار في موعده المتفق عليه."}</li>
-          <li>يلتزم المستأجر باستعمال العين المؤجرة للغرض المخصص لها وعدم تأجيرها من الباطن إلا بموافقة خطية من المالك.</li>
-          <li>يتحمل المستأجر قيمة استهلاك الكهرباء والماء وأي رسوم خدمات تخص وحدته.</li>
-          <li>يلتزم المستأجر بالمحافظة على العين المؤجرة وإصلاح أي تلف ناتج عن سوء الاستعمال.</li>
-          <li>يُرد مبلغ التأمين عند إخلاء الوحدة بعد خصم ما يستحق من إيجار أو تلفيات أو فواتير.</li>
-          <li>يجدد العقد تلقائيًا لمدة مماثلة ما لم يخطر أحد الطرفين الآخر برغبته في عدم التجديد قبل شهر من تاريخ الانتهاء.</li>
-          <li>يخضع هذا العقد لأحكام قانون الإيجار في دولة الكويت، وتختص محاكم الكويت بنظر أي نزاع.</li>
-        </ol>
+      <p className="mb-3 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
+        على أن يؤجر الطرف الأول للطرف الثاني ( العين ) الواقعة بمنطقة
+        ( <b>{building?.area ?? "حولي"}</b> ) قطعة رقم ( <b>{(building?.block ?? "").replace("قطعة", "").trim() || "10"}</b> )
+        شارع ( <b>{(building?.street ?? "").replace("شارع", "").trim() || "موسى بن نصير"}</b> )
+        عمارة رقم ( <b>{(building?.buildingNo ?? "").replace(/\D+/g, "") || "37"}</b> )
+        الدور ( <b>{floor?.name}</b> ) شقة رقم ( <b>{unit?.number}</b> )
+        كسكن خاص له ولعائلته وفق الشروط التالية:
+      </p>
+
+      <div className="mb-4 grid gap-x-8 gap-y-2 rounded-lg border p-3 sm:grid-cols-2" style={{ borderColor: LINE }}>
+        <Line k="مدة هذا العقد :" v={contract.durationText || "سنة"} />
+        <Line k="القيمة الإيجارية الشهرية :" v={KWD(contract.rent)} />
+        <Line k="يبدأ بتاريخ :" v={dateShort(contract.startDate)} />
+        <Line k="وينتهي بتاريخ :" v={dateShort(contract.endDate)} />
+        <Line k="عدد الساكنين :" v={contract.occupants ? num(contract.occupants) : ""} />
+        <Line k="التأمين :" v={contract.deposit ? KWD(contract.deposit) : ""} />
       </div>
 
-      <Signatures />
-      <p className="mt-8 text-center text-[10.5px] text-[#9fb0c4]">
-        هذا المستند صادر آليًا من نظام {data.settings.orgName} — {dateShort(new Date().toISOString())}
+      <ol className="list-inside list-decimal space-y-2 text-[12.5px] leading-relaxed" style={{ color: "#2a4361" }}>
+        <li>
+          تتجدد مدة هذا العقد تلقائيًا لمدد مماثلة ما لم يخطر أي من الطرفين الطرف الآخر بعدم رغبته في التجديد كتابةً قبل
+          انتهاء المدة بشهر على الأقل، وعند حصول التنبيه بالإخلاء فإنه يجب على المستأجر أن يسهّل ويسمح بدخول كل من يرغب
+          بمعاينة العين.
+        </li>
+        <li>
+          القيمة الإيجارية الشهرية <b>{KWD(contract.rent)}</b> تعتبر دينًا مترصدًا في ذمة الطرف الثاني محدد القيمة وواجب الوفاء.
+        </li>
+        <li>
+          يتعهد ويلتزم الطرف الثاني ( المستأجر ) بسداد الأجرة الشهرية قبل يوم {num(contract.dueDay || data.settings.dueDay)} من كل شهر ميلادي.
+        </li>
+        <li>
+          يتعهد ويلتزم المستأجر بأن عدد الساكنين في العين محل هذا العقد لا يزيدون عن عدد
+          ( {contract.occupants ? num(contract.occupants) : "    "} ) شخص / أشخاص.
+        </li>
+        <li>
+          في حالة رغبة المستأجر بالإخلاء وإنهاء العقد عليه إعلام المؤجر خطيًا قبل الإخلاء بمدة لا تقل عن شهر، ويجب تسليم
+          العين قبل تاريخ 25 من الشهر، وفي حال التأخير وعدم الالتزام بتسليم العين المؤجرة بالموعد فيُحتسب على الطرف الثاني
+          إيجار الشهر الذي يليه.
+        </li>
+        <li>
+          يتعهد ويلتزم المستأجر بعدم الجلوس أو التدخين بالمصاعد والممرات والسلالم، ولا يحق له التخزين في أي مكان خارج
+          العين المؤجرة أو استخدامها كمخزن للأغراض أو المواد الملتهبة أو المضرة بالصحة، وهو مسؤول قِبل المؤجر عن أي حريق
+          يحدث نتيجة إهماله أو تعديه، ولا يحق للمستأجر اعتبار المؤجر مسؤولًا عن تعدي الغير. وفي حالة المخالفة يحق للطرف
+          الأول رمي أي أغراض خُزّنت خارج العين ولا يحق له المطالبة بتعويض، كما يلتزم بعدم رمي الأوساخ خارج المكان المخصص
+          لذلك وعدم استخدام مواقف السيارات بطريقة خاطئة.
+        </li>
+        <li>
+          إذا تأخر الطرف الثاني عن دفع القيمة الإيجارية في ميعاد استحقاقها يُفسخ العقد فورًا من تلقاء نفسه دون الحاجة إلى
+          تنبيه أو إنذار، وتعتبر يد المستأجر يد غاصب، ويختص القضاء المستعجل بالحكم بصفة مستعجلة بطرده من العين، وكذلك من
+          حق المؤجر المطالبة بكامل قيمة العقد عن مدته الأصلية أو المحددة والتعويض الاتفاقي في البند الأول واستيفاء
+          المستأجر لكافة التعويضات والمصاريف المترتبة على الإخلاء.
+        </li>
+        <li>
+          يقر الطرف الثاني أنه عاين العين محل العقد المعاينة التامة النافية للجهالة وقد وجدها على أحسن حال ومستوفية لكل
+          لوازمها التي تمكنه من الانتفاع بها.
+        </li>
+        <li>
+          يتعهد الطرف الثاني بالمحافظة على العين المؤجرة وتسليمها على حالتها كما استلمها، وألّا يُحدث أي تغيير سواء هدم أو
+          بناء أو تمديدات كهربائية والستالايت إلا بتصريح كتابي من الطرف الأول.
+        </li>
+        <li>
+          مصروفات رسوم الكهرباء والماء وبلدية الكويت يتحملها الطرف الأول، كما يتحمل الطرف الثاني دفع أي زيادة أو إضافة في
+          تسعيرة الخدمات التي تقدمها الجهات الحكومية أو الأهلية كزيادة رسوم مصروفات الماء والكهرباء والنظافة وضريبة
+          القيمة المضافة وغيرها من الرسوم التي قد تُفرض على العين المؤجرة، وتعتبر هذه الزيادة جزءًا من هذا العقد الماثل
+          وتضاف على القيمة الإيجارية المحددة والملزم بدفعها الطرف الثاني.
+        </li>
+        <li>
+          جميع المنقولات الموجودة بالعين المستأجرة ضامنة للأجرة المعقود عليها، ولا يحق للمستأجر نقلها إلا بعد الوفاء بالأجرة.
+        </li>
+        <li>
+          لا يحق للطرف الثاني التأجير بالباطن أو إيواء الغير أو التنازل عن المكان أو جزء منه دون أخذ موافقة خطية من
+          المؤجر، مع دفع قيمة الإيجار مقدمًا في حالة السفر، كما أن الموكلين من الطرف الثاني بإدارة العين أو القاطنين
+          يعتبرون ضامنين متضامنين بدفع جميع المبالغ المستحقة من الإيجار، ولا يحق لهم تغيير حق السكن العائلي وذلك يعتبر
+          مخالفة لبنود العقد.
+        </li>
+        <li>
+          يتعهد ويلتزم المستأجر بعدم الإضرار بالجيران وإزعاجهم، وأن يحترم الشعائر والأحكام الإسلامية والعادات والتقاليد
+          والأعراف في دولة الكويت، ويكون مسؤولًا عن تصرفاته الشخصية وعن تصرفات التابعين له ومن يكون قاطنًا معه، ويُمنع
+          منعًا باتًا إدخال أي نوع من الحيوانات داخل العقار.
+        </li>
+        <li>
+          في حال عدم التزام الطرف الثاني بسداد الأجرة الشهرية، يلتزم الطرف الثاني بدفع مبلغ {KWD(data.settings.lateFee)} للطرف
+          الأول وذلك نظير الرسوم الإدارية وأتعاب المحاماة.
+        </li>
+        <li>
+          يتعهد ويلتزم الطرف الثاني بجميع ما ذُكر بالعقد حتى في حال تعطيل الدوامات في القطاع الحكومي أو الأهلي أو نشوب
+          كوارث طبيعية أو حروب أو ظروف خارجة عن الإرادة أو حالات صحية أو الانقطاع أو التضرر الكلي أو الجزئي في وظيفة وعمل
+          الطرف الثاني.
+        </li>
+        <li>
+          في حال مخالفة الطرف الثاني لأي بند من البنود المذكورة في هذا الاتفاق، يعتبر العقد مفسوخًا من تلقاء نفسه دون
+          الرجوع إليه، ويحق للطرف الأول المطالبة بتعويض عن الأضرار التي نتجت عن ذلك.
+        </li>
+        <li>
+          يقر المستأجر بأنه يتخذ العين موضوع العقد محلًا مختارًا له المبين عنوانها، وكذلك ( البريد الإلكتروني ) ورقم
+          الهاتف المسجل في صدر هذا العقد، وكل إعلان يُرسل له عن طريق البريد الإلكتروني ورقم الهاتف أو عنوان السكن أو أي
+          وسيلة تقرها دولة الكويت يعتبر قانونيًا.
+        </li>
+        <li>
+          يدفع المستأجر مبلغ {KWD(data.settings.supervisorFee)} للمشرف الفني على العمارة مع دفع الأجرة الشهرية وذلك نظير قيامه
+          بتنظيف العمارة ورمي القمامة.
+        </li>
+        <li>
+          كل ما لم يرد به اتفاق في هذا العقد يخضع لقانون الإيجارات بدولة الكويت، وتختص المحاكم الكويتية بالفصل في
+          المنازعات الناشئة عن تنفيذ هذا العقد.
+        </li>
+      </ol>
+
+      <p className="mt-4 text-center text-[12.5px] font-bold" style={{ color: INK }}>
+        حُرر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها
       </p>
+
+      <Signatures a={`الطرف الأول ( المؤجر ) — السيد / ${owner}`} b="الطرف الثاني ( المستأجر )" />
     </>
   );
 }
 
 /* ================================ الوصل ================================= */
 
+/** وصل استلام الإيجار بنفس حقول النموذج الورقي للمكتب. */
 export function ReceiptDoc({ payment }: { payment: Payment }) {
   const { data } = useStore();
-  const unit = data.units.find((u) => u.id === payment.unitId);
   const tenant = data.tenants.find((t) => t.id === payment.tenantId);
-  const building = data.buildings.find((b) => b.id === payment.buildingId);
-  const floor = data.floors.find((f) => f.id === unit?.floorId);
+  const { unit, floor, building } = useUnitCtx(payment.unitId);
+  const { dinars, fils } = dinarsFils(payment.amount);
 
   return (
     <>
-      <DocHeader
-        title="وصل استلام إيجار"
-        subtitle={`رقم ${payment.receiptNo}`}
-        meta={<p className="mt-1 text-[11.5px] text-[#7089a3]">{dateShort(payment.paidAt)}</p>}
+      <LetterHead
+        title="وصل استلام"
+        en="Payment Receipt"
+        meta={
+          <>
+            <p className="mt-1 text-[13px] font-extrabold" style={{ color: INK }}>رقم {payment.receiptNo}</p>
+            <p className="text-[11.5px]" style={{ color: MUTED }}>{dateShort(payment.paidAt)} — {dayName(payment.paidAt)}</p>
+          </>
+        }
       />
 
-      <div className="mb-5 rounded-2xl border-2 border-[#123a6b] bg-[#edf3fb] p-5 text-center">
-        <p className="text-[12.5px] font-bold text-[#0e2f58]">المبلغ المستلم</p>
-        <p className="mt-1 text-[30px] font-extrabold leading-none text-[#0b2545]">{KWD(payment.amount)}</p>
-        <p className="mt-1.5 text-[12.5px] text-[#0e2f58]">عن إيجار شهر {monthAr(payment.period)}</p>
+      <p className="mb-3 text-[13px]" style={{ color: INK }}>
+        استلمنا من السيد / <b>{tenant?.name}</b>
+      </p>
+
+      <div className="mb-4 rounded-xl border-2 p-4" style={{ borderColor: NAVY, background: "#edf3fb" }}>
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-[14px]">
+          <Line k="مبلغ وقدره :" v={<b>{amount(payment.amount)}</b>} />
+          <Line k="دينار :" v={num(dinars)} />
+          <Line k="فلس :" v={String(fils).padStart(3, "0")} />
+        </div>
+        <p className="mt-2 text-[12.5px] font-bold" style={{ color: NAVY }}>
+          فقط {amountInWords(dinars)} دينارًا كويتيًا{fils ? ` و${num(fils)} فلسًا` : ""} لا غير.
+        </p>
       </div>
 
-      <div className="grid gap-x-8 sm:grid-cols-2">
-        <div>
-          <Row k="المستأجر" v={tenant?.name ?? "—"} />
-          <Row k="الرقم المدني" v={tenant?.civilId ?? "—"} />
-          <Row k="الهاتف" v={tenant?.phone ?? "—"} />
-        </div>
-        <div>
-          <Row k="العمارة" v={building?.name ?? "—"} />
-          <Row k="الدور / الوحدة" v={`${floor?.name ?? "—"} — ${unit?.number ?? "—"}`} />
-          <Row k="طريقة الدفع" v={methodLabel[payment.method]} />
-          {payment.reference && <Row k="المرجع" v={payment.reference} />}
-        </div>
+      <div className="mb-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+        <Line k="نقدًا / شيك رقم :" v={payment.method === "cheque" ? (payment.reference || "") : methodLabel[payment.method]} />
+        <Line k="على بنك :" v={payment.bank || ""} />
+        <Line k="وذلك عن إيجار شقة رقم :" v={unit?.number} />
+        <Line k="الدور :" v={floor?.name} />
+        <Line k="عن شهر :" v={monthAr(payment.period)} />
+        <Line k="العقار :" v={`${building?.name ?? ""} — ${building?.area ?? ""}`} />
       </div>
 
       {payment.notes && (
-        <p className="mt-4 rounded-xl bg-[#f8fafc] p-3 text-[12.5px] text-[#2a4361]">
+        <p className="mb-4 rounded-lg p-3 text-[12.5px]" style={{ background: "#f9fbfd", color: "#2a4361" }}>
           <b>ملاحظات: </b>{payment.notes}
         </p>
       )}
 
-      <p className="mt-6 text-[12.5px] leading-relaxed text-[#2a4361]">
-        استلمنا من السيد/ة <b>{tenant?.name}</b> مبلغًا وقدره <b>{KWD(payment.amount)}</b> وذلك عن إيجار
-        الوحدة رقم <b>{unit?.number}</b> في <b>{building?.name}</b> لشهر <b>{monthAr(payment.period)}</b>،
-        وهذا الوصل بمثابة إبراء عن الشهر المذكور فقط.
+      <p className="text-[12.5px] leading-relaxed" style={{ color: "#2a4361" }}>
+        وهذا الوصل بمثابة إبراء عن الشهر المذكور أعلاه فقط، ولا يُعتد به في غير ما حُرر من أجله.
       </p>
 
-      <Signatures a="المستلم (إدارة العقار)" b="المستأجر" />
-      <p className="mt-8 text-center text-[10.5px] text-[#9fb0c4]">
+      <Signatures a="المستلم ( إدارة العقار )" b="المستأجر" />
+
+      <p className="mt-6 text-center text-[10.5px]" style={{ color: "#9fb0c4" }}>
         وصل رقم {payment.receiptNo} — صادر آليًا من نظام {data.settings.orgName}
+      </p>
+    </>
+  );
+}
+
+/* ============================== طلب الإخلاء ============================== */
+
+/** إقرار إخلاء وتسليم العين المؤجرة — منقول من نموذج «طلب اخلا.doc». */
+export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenantId?: string; date?: string }) {
+  const { data } = useStore();
+  const tenant = data.tenants.find((t) => t.id === tenantId);
+  const { unit, floor, building } = useUnitCtx(unitId);
+
+  return (
+    <>
+      <LetterHead
+        title="طلب إخلاء"
+        en="Eviction Acknowledgement"
+        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>في الكويت — {dateShort(date)}</p>}
+      />
+
+      <p className="mb-4 text-[13.5px] font-extrabold" style={{ color: NAVY }}>
+        الموضوع : إقرار إخلاء وتسليم العين المؤجرة
+      </p>
+
+      <div className="mb-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+        <Line k="أقر وأتعهد أنا :" v={tenant?.name} w="sm:col-span-2" />
+        <Line k="أحمل بطاقة مدنية رقم :" v={tenant?.civilId} />
+        <Line k="رقم الهاتف :" v={tenant?.phone} />
+      </div>
+
+      <p className="mb-4 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
+        إقرارًا نافيًا للجهالة وغير قابل للعدول بإخلاء العين المؤجرة رقم ( <b>{unit?.number}</b> )
+        الدور ( <b>{floor?.name}</b> ) بالعقار الكائن بمنطقة <b>{building?.area ?? "حولي الجنوبي"}</b>{" "}
+        <b>{building?.block ?? "قطعة 10"}</b> <b>{building?.street ?? "شارع موسى بن نصير"}</b>{" "}
+        <b>{building?.parcel ?? "قسيمة رقم 21/79"}</b> <b>{building?.buildingNo ?? "عمارة رقم 37"}</b>
+      </p>
+
+      <div className="mb-4">
+        <Line k="بتاريخ :" v={dateShort(date)} />
+      </div>
+
+      <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
+        وهذا إقرار وتعهد مني نافٍ للجهالة وغير قابل للعدول بأنني سلّمت العين المؤجرة المذكورة أعلاه بالتاريخ المذكور وهي
+        خالية من المتاع والشواغل، كما أتعهد وأقر بتسليم المالك براءة ذمة صادرة من وزارة الكهرباء والماء تفيد بتسديد ما
+        عليّ من التزامات ومستحقات.
+      </p>
+
+      <div className="grid gap-y-3 sm:w-1/2">
+        <Line k="الاسم :" v={tenant?.name} />
+        <Line k="الرقم المدني :" v={tenant?.civilId} />
+        <Line k="التاريخ :" v={dateShort(date)} />
+        <Line k="التوقيع :" v="" />
+      </div>
+
+      <p className="mt-10 text-center text-[11px]" style={{ color: MUTED }}>
+        {data.settings.orgName} — {data.settings.ownerFullName}
       </p>
     </>
   );
@@ -237,65 +410,69 @@ export function TenantStatementDoc({ tenantId }: { tenantId: string }) {
   const contracts = data.contracts.filter((c) => c.tenantId === tenantId);
   const payments = data.payments.filter((p) => p.tenantId === tenantId).sort((a, b) => a.period.localeCompare(b.period));
   const active = contracts.find((c) => c.status === "active");
-  const unit = data.units.find((u) => u.id === active?.unitId);
+  const unit = data.units.find((u) => u.id === active?.unitId) as Unit | undefined;
   const building = data.buildings.find((b) => b.id === active?.buildingId);
   const due = active ? arrears(data, scope(data, active.buildingId)).find((a) => a.contract.id === active.id) : undefined;
   const total = payments.reduce((a, p) => a + p.amount, 0);
 
   return (
     <>
-      <DocHeader title="كشف حساب مستأجر" subtitle={tenant?.name} meta={<p className="mt-1 text-[11.5px] text-[#7089a3]">حتى {dateShort(new Date().toISOString())}</p>} />
+      <LetterHead
+        title="كشف حساب"
+        en="Account Statement"
+        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>حتى {dateShort(new Date().toISOString())}</p>}
+      />
 
       <div className="mb-5 grid gap-x-8 sm:grid-cols-2">
         <div>
           <Row k="المستأجر" v={tenant?.name ?? "—"} />
           <Row k="الرقم المدني" v={tenant?.civilId ?? "—"} />
-          <Row k="الهاتف" v={tenant?.phone ?? "—"} />
+          <Row k="رقم الهاتف" v={tenant?.phone ?? "—"} />
         </div>
         <div>
-          <Row k="العمارة / الوحدة" v={`${building?.name ?? "—"} — ${unit?.number ?? "—"}`} />
-          <Row k="الإيجار الشهري" v={active ? KWD(active.rent) : "—"} />
+          <Row k="العقار / الوحدة" v={`${building?.name ?? "—"} — ${unit?.number ?? "—"}`} />
+          <Row k="القيمة الإيجارية الشهرية" v={active ? KWD(active.rent) : "—"} />
           <Row k="مدة العقد" v={active ? `${dateShort(active.startDate)} — ${dateShort(active.endDate)}` : "—"} />
         </div>
       </div>
 
       <table className="w-full border-collapse text-[12.5px]">
         <thead>
-          <tr className="bg-[#edf3fb] text-[#0b2545]">
-            <th className="border border-[#cbd7e5] p-2 text-right">م</th>
-            <th className="border border-[#cbd7e5] p-2 text-right">الشهر</th>
-            <th className="border border-[#cbd7e5] p-2 text-right">رقم الوصل</th>
-            <th className="border border-[#cbd7e5] p-2 text-right">تاريخ الدفع</th>
-            <th className="border border-[#cbd7e5] p-2 text-right">الطريقة</th>
-            <th className="border border-[#cbd7e5] p-2 text-left">المبلغ</th>
+          <tr style={{ background: "#edf3fb", color: NAVY }}>
+            <th className="border p-2 text-right" style={{ borderColor: LINE }}>م</th>
+            <th className="border p-2 text-right" style={{ borderColor: LINE }}>الشهر</th>
+            <th className="border p-2 text-right" style={{ borderColor: LINE }}>رقم الوصل</th>
+            <th className="border p-2 text-right" style={{ borderColor: LINE }}>تاريخ السداد</th>
+            <th className="border p-2 text-right" style={{ borderColor: LINE }}>طريقة الدفع</th>
+            <th className="border p-2 text-left" style={{ borderColor: LINE }}>المبلغ (د.ك)</th>
           </tr>
         </thead>
         <tbody>
           {payments.map((p, i) => (
             <tr key={p.id}>
-              <td className="border border-[#cbd7e5] p-2">{i + 1}</td>
-              <td className="border border-[#cbd7e5] p-2">{monthAr(p.period)}</td>
-              <td className="border border-[#cbd7e5] p-2">{p.receiptNo}</td>
-              <td className="border border-[#cbd7e5] p-2">{dateShort(p.paidAt)}</td>
-              <td className="border border-[#cbd7e5] p-2">{methodLabel[p.method]}</td>
-              <td className="border border-[#cbd7e5] p-2 text-left font-bold tabular-nums">{KWD(p.amount, false)}</td>
+              <td className="border p-2" style={{ borderColor: LINE }}>{num(i + 1)}</td>
+              <td className="border p-2" style={{ borderColor: LINE }}>{monthAr(p.period)}</td>
+              <td className="border p-2" style={{ borderColor: LINE }}>{p.receiptNo}</td>
+              <td className="border p-2" style={{ borderColor: LINE }}>{dateShort(p.paidAt)}</td>
+              <td className="border p-2" style={{ borderColor: LINE }}>{methodLabel[p.method]}</td>
+              <td className="border p-2 text-left font-bold tabular-nums" style={{ borderColor: LINE }}>{amount(p.amount)}</td>
             </tr>
           ))}
           {!payments.length && (
-            <tr><td colSpan={6} className="border border-[#cbd7e5] p-4 text-center text-[#7089a3]">لا توجد دفعات مسجلة</td></tr>
+            <tr><td colSpan={6} className="border p-4 text-center" style={{ borderColor: LINE, color: MUTED }}>لا توجد دفعات مسجّلة</td></tr>
           )}
         </tbody>
         <tfoot>
-          <tr className="bg-[#f8fafc] font-extrabold">
-            <td className="border border-[#cbd7e5] p-2" colSpan={5}>إجمالي المدفوع</td>
-            <td className="border border-[#cbd7e5] p-2 text-left tabular-nums">{KWD(total, false)}</td>
+          <tr className="font-extrabold" style={{ background: "#f9fbfd" }}>
+            <td className="border p-2" style={{ borderColor: LINE }} colSpan={5}>إجمالي المسدَّد</td>
+            <td className="border p-2 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(total)}</td>
           </tr>
           {due && due.amount > 0 && (
-            <tr className="bg-[#fbeaec] font-extrabold text-[#b3303b]">
-              <td className="border border-[#cbd7e5] p-2" colSpan={5}>
+            <tr className="font-extrabold" style={{ background: "#fbeaec", color: "#b3303b" }}>
+              <td className="border p-2" style={{ borderColor: LINE }} colSpan={5}>
                 المتأخر ({due.missing.map(monthAr).join("، ")})
               </td>
-              <td className="border border-[#cbd7e5] p-2 text-left tabular-nums">{KWD(due.amount, false)}</td>
+              <td className="border p-2 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(due.amount)}</td>
             </tr>
           )}
         </tfoot>
@@ -306,7 +483,7 @@ export function TenantStatementDoc({ tenantId }: { tenantId: string }) {
   );
 }
 
-/* =========================== كشف مالي للعمارة =========================== */
+/* =========================== كشف مالي للعقار =========================== */
 
 export function BuildingStatementDoc({ buildingId, period }: { buildingId: string; period: string }) {
   const { data } = useStore();
@@ -322,98 +499,174 @@ export function BuildingStatementDoc({ buildingId, period }: { buildingId: strin
 
   return (
     <>
-      <DocHeader title="كشف مالي شهري" subtitle={building?.name} meta={<p className="mt-1 text-[11.5px] text-[#7089a3]">{monthAr(period)}</p>} />
+      <LetterHead
+        title="كشف مالي شهري"
+        en="Monthly Statement"
+        meta={
+          <>
+            <p className="mt-1 text-[13px] font-bold" style={{ color: INK }}>{building?.name}</p>
+            <p className="text-[11.5px]" style={{ color: MUTED }}>{monthAr(period)}</p>
+          </>
+        }
+      />
 
-      <div className="mb-5 grid grid-cols-4 gap-2 text-center">
+      <div className="mb-4 grid grid-cols-4 gap-2 text-center">
         {[
-          ["الإيجار المستحق", KWD(expected, false), "#0b2545", "#f8fafc"],
-          ["المحصّل", KWD(income, false), "#1e8a5f", "#e7f4ee"],
-          ["المصاريف", KWD(outgo, false), "#a87c1e", "#fbf3e1"],
-          ["الصافي", KWD(income - outgo, false), income - outgo >= 0 ? "#0b2545" : "#b3303b", income - outgo >= 0 ? "#edf3fb" : "#fbeaec"],
+          ["الإيجار المستحق", KWD(expected), INK, "#f9fbfd"],
+          ["المحصَّل", KWD(income), "#1e8a5f", "#e7f4ee"],
+          ["المصروفات", KWD(outgo), "#a87c1e", "#fbf3e1"],
+          ["الصافي", KWD(income - outgo), income - outgo >= 0 ? NAVY : "#b3303b", income - outgo >= 0 ? "#edf3fb" : "#fbeaec"],
         ].map(([l, v, c, bg]) => (
           <div key={l} className="rounded-xl p-3" style={{ background: bg }}>
             <p className="text-[11px] font-bold" style={{ color: c }}>{l}</p>
-            <p className="text-[15px] font-extrabold tabular-nums" style={{ color: c }}>{v}</p>
+            <p className="text-[14px] font-extrabold tabular-nums" style={{ color: c }}>{v}</p>
           </div>
         ))}
       </div>
-      <p className="mb-5 text-[12px] text-[#7089a3]">
-        نسبة التحصيل: <b className="text-[#0b2545]">{pct(expected ? (income / expected) * 100 : 0)}</b> ·
-        عدد الوحدات: <b className="text-[#0b2545]">{num(s.units.length)}</b> ·
-        المؤجرة: <b className="text-[#0b2545]">{num(s.units.filter((u) => u.status === "occupied").length)}</b>
+      <p className="mb-5 text-[12px]" style={{ color: MUTED }}>
+        نسبة التحصيل: <b style={{ color: INK }}>{pct(expected ? (income / expected) * 100 : 0)}</b> ·
+        عدد الوحدات: <b style={{ color: INK }}>{num(s.units.length)}</b> ·
+        المؤجرة: <b style={{ color: INK }}>{num(s.units.filter((u) => u.status === "occupied").length)}</b>
       </p>
 
-      <p className="mb-1.5 text-[13px] font-extrabold text-[#123a6b]">أولًا: المقبوضات</p>
+      <p className="mb-1.5 text-[13px] font-extrabold" style={{ color: NAVY }}>أولًا: المقبوضات</p>
       <table className="mb-6 w-full border-collapse text-[12px]">
         <thead>
-          <tr className="bg-[#e7f4ee] text-[#1e8a5f]">
-            <th className="border border-[#cbd7e5] p-1.5 text-right">م</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">الوحدة</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">المستأجر</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">الوصل</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">التاريخ</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-left">المبلغ</th>
+          <tr style={{ background: "#e7f4ee", color: "#1e8a5f" }}>
+            {["م", "الوحدة", "المستأجر", "رقم الوصل", "التاريخ"].map((h) => (
+              <th key={h} className="border p-1.5 text-right" style={{ borderColor: LINE }}>{h}</th>
+            ))}
+            <th className="border p-1.5 text-left" style={{ borderColor: LINE }}>المبلغ (د.ك)</th>
           </tr>
         </thead>
         <tbody>
           {payments.map((p, i) => (
             <tr key={p.id}>
-              <td className="border border-[#cbd7e5] p-1.5">{i + 1}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{unitById.get(p.unitId)?.number ?? "—"}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{tenantById.get(p.tenantId)?.name ?? "—"}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{p.receiptNo}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{dateShort(p.paidAt)}</td>
-              <td className="border border-[#cbd7e5] p-1.5 text-left font-bold tabular-nums">{KWD(p.amount, false)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{num(i + 1)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{unitById.get(p.unitId)?.number ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{tenantById.get(p.tenantId)?.name ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{p.receiptNo}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(p.paidAt)}</td>
+              <td className="border p-1.5 text-left font-bold tabular-nums" style={{ borderColor: LINE }}>{amount(p.amount)}</td>
             </tr>
           ))}
-          {!payments.length && <tr><td colSpan={6} className="border border-[#cbd7e5] p-3 text-center text-[#7089a3]">لا يوجد</td></tr>}
+          {!payments.length && <tr><td colSpan={6} className="border p-3 text-center" style={{ borderColor: LINE, color: MUTED }}>لا يوجد</td></tr>}
         </tbody>
         <tfoot>
-          <tr className="bg-[#f8fafc] font-extrabold">
-            <td className="border border-[#cbd7e5] p-1.5" colSpan={5}>الإجمالي</td>
-            <td className="border border-[#cbd7e5] p-1.5 text-left tabular-nums">{KWD(income, false)}</td>
+          <tr className="font-extrabold" style={{ background: "#f9fbfd" }}>
+            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={5}>الإجمالي</td>
+            <td className="border p-1.5 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(income)}</td>
           </tr>
         </tfoot>
       </table>
 
-      <p className="mb-1.5 text-[13px] font-extrabold text-[#123a6b]">ثانيًا: المصروفات</p>
+      <p className="mb-1.5 text-[13px] font-extrabold" style={{ color: NAVY }}>ثانيًا: المصروفات</p>
       <table className="w-full border-collapse text-[12px]">
         <thead>
-          <tr className="bg-[#fbf3e1] text-[#a87c1e]">
-            <th className="border border-[#cbd7e5] p-1.5 text-right">م</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">البند</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">البيان</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">الجهة</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-right">التاريخ</th>
-            <th className="border border-[#cbd7e5] p-1.5 text-left">المبلغ</th>
+          <tr style={{ background: "#fbf3e1", color: "#a87c1e" }}>
+            {["م", "البند", "البيان", "الجهة", "التاريخ"].map((h) => (
+              <th key={h} className="border p-1.5 text-right" style={{ borderColor: LINE }}>{h}</th>
+            ))}
+            <th className="border p-1.5 text-left" style={{ borderColor: LINE }}>المبلغ (د.ك)</th>
           </tr>
         </thead>
         <tbody>
           {expenses.map((e, i) => (
             <tr key={e.id}>
-              <td className="border border-[#cbd7e5] p-1.5">{i + 1}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{expenseLabel[e.category]}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{e.title}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{e.vendor ?? "—"}</td>
-              <td className="border border-[#cbd7e5] p-1.5">{dateShort(e.date)}</td>
-              <td className="border border-[#cbd7e5] p-1.5 text-left font-bold tabular-nums">{KWD(e.amount, false)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{num(i + 1)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{expenseLabel[e.category]}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{e.title}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{e.vendor ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(e.date)}</td>
+              <td className="border p-1.5 text-left font-bold tabular-nums" style={{ borderColor: LINE }}>{amount(e.amount)}</td>
             </tr>
           ))}
-          {!expenses.length && <tr><td colSpan={6} className="border border-[#cbd7e5] p-3 text-center text-[#7089a3]">لا يوجد</td></tr>}
+          {!expenses.length && <tr><td colSpan={6} className="border p-3 text-center" style={{ borderColor: LINE, color: MUTED }}>لا يوجد</td></tr>}
         </tbody>
         <tfoot>
-          <tr className="bg-[#f8fafc] font-extrabold">
-            <td className="border border-[#cbd7e5] p-1.5" colSpan={5}>الإجمالي</td>
-            <td className="border border-[#cbd7e5] p-1.5 text-left tabular-nums">{KWD(outgo, false)}</td>
+          <tr className="font-extrabold" style={{ background: "#f9fbfd" }}>
+            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={5}>الإجمالي</td>
+            <td className="border p-1.5 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(outgo)}</td>
           </tr>
-          <tr className="bg-[#edf3fb] font-extrabold text-[#0b2545]">
-            <td className="border border-[#cbd7e5] p-1.5" colSpan={5}>صافي الدخل للشهر</td>
-            <td className="border border-[#cbd7e5] p-1.5 text-left tabular-nums">{KWD(income - outgo, false)}</td>
+          <tr className="font-extrabold" style={{ background: "#edf3fb", color: NAVY }}>
+            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={5}>صافي الدخل للشهر</td>
+            <td className="border p-1.5 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(income - outgo)}</td>
           </tr>
         </tfoot>
       </table>
 
       <Signatures a="المحاسب" b="المالك / الوكيل" />
+    </>
+  );
+}
+
+/* ========================= كشف المستأجرين الشامل ========================= */
+
+/** بديل «سجل بيانات العمارة» في البرنامج القديم — كل المستأجرين في جدول واحد. */
+export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
+  const { data } = useStore();
+  const building = data.buildings.find((b) => b.id === buildingId);
+  const floorById = new Map(data.floors.map((f) => [f.id, f]));
+  const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
+
+  const rows = data.contracts
+    .filter((c) => c.buildingId === buildingId && c.status === "active")
+    .map((c) => ({ c, unit: data.units.find((u) => u.id === c.unitId), tenant: tenantById.get(c.tenantId) }))
+    .sort((a, b) => (a.unit?.number ?? "").localeCompare(b.unit?.number ?? "", "ar", { numeric: true }));
+
+  const total = rows.reduce((a, r) => a + r.c.rent, 0);
+
+  return (
+    <>
+      <LetterHead
+        title="سجل المستأجرين"
+        en="Tenants Register"
+        meta={
+          <>
+            <p className="mt-1 text-[13px] font-bold" style={{ color: INK }}>{building?.name}</p>
+            <p className="text-[11.5px]" style={{ color: MUTED }}>{dateShort(new Date().toISOString())}</p>
+          </>
+        }
+      />
+
+      <table className="w-full border-collapse text-[11px]">
+        <thead>
+          <tr style={{ background: "#edf3fb", color: NAVY }}>
+            {["م", "الدور", "الشقة", "اسم المستأجر", "الرقم المدني", "الجنسية", "الهاتف", "من", "إلى"].map((h) => (
+              <th key={h} className="border p-1.5 text-right" style={{ borderColor: LINE }}>{h}</th>
+            ))}
+            <th className="border p-1.5 text-left" style={{ borderColor: LINE }}>الإيجار (د.ك)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.c.id}>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{num(i + 1)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{floorById.get(r.unit?.floorId ?? "")?.name ?? "—"}</td>
+              <td className="border p-1.5 font-bold" style={{ borderColor: LINE }}>{r.unit?.number ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.name ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.civilId ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.nationality ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.phone ?? "—"}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(r.c.startDate)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(r.c.endDate)}</td>
+              <td className="border p-1.5 text-left font-bold tabular-nums" style={{ borderColor: LINE }}>{amount(r.c.rent)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="font-extrabold" style={{ background: "#f9fbfd" }}>
+            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={9}>
+              إجمالي الإيجار الشهري — {num(rows.length)} وحدة مؤجرة
+            </td>
+            <td className="border p-1.5 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(total)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <p className="mt-6 text-center text-[10.5px]" style={{ color: "#9fb0c4" }}>
+        صادر آليًا من نظام {data.settings.orgName} — {dateAr(new Date().toISOString())}
+      </p>
     </>
   );
 }

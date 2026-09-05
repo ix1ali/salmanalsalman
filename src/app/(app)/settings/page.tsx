@@ -76,8 +76,11 @@ export default function SettingsPage() {
         <div className="card card-lg p-4">
           <SectionTitle>إعدادات النظام</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="اسم الجهة / المكتب" className="sm:col-span-2">
+            <Field label="اسم الجهة / المكتب">
               <TextInput value={org.orgName} onChange={(e) => setOrg({ ...org, orgName: e.target.value })} />
+            </Field>
+            <Field label="اسم المالك كما يُكتب في العقود">
+              <TextInput value={org.ownerFullName} onChange={(e) => setOrg({ ...org, ownerFullName: e.target.value })} />
             </Field>
             <Field label="العملة">
               <Select value={org.currency} onChange={(e) => setOrg({ ...org, currency: e.target.value })}>
@@ -92,6 +95,18 @@ export default function SettingsPage() {
             </Field>
             <Field label="تنبيه قرب انتهاء العقد (أيام)">
               <TextInput type="number" min={7} max={180} value={org.contractAlertDays} onChange={(e) => setOrg({ ...org, contractAlertDays: +e.target.value })} />
+            </Field>
+            <Field label="يوم استحقاق الإيجار" hint="حسب العقد: قبل يوم 5 من كل شهر">
+              <TextInput type="number" min={1} max={28} value={org.dueDay} onChange={(e) => setOrg({ ...org, dueDay: +e.target.value })} />
+            </Field>
+            <Field label="بداية احتساب المتأخرات" hint="لا تُحتسب مطالبات عن أي شهر قبل هذا التاريخ">
+              <TextInput type="month" value={org.trackingStartPeriod} onChange={(e) => setOrg({ ...org, trackingStartPeriod: e.target.value })} />
+            </Field>
+            <Field label="الغرامة الإدارية عند التأخر (د.ك)" hint="البند الرابع عشر من العقد">
+              <TextInput type="number" min={0} value={org.lateFee} onChange={(e) => setOrg({ ...org, lateFee: +e.target.value })} />
+            </Field>
+            <Field label="أجرة المشرف الفني الشهرية (د.ك)" hint="البند الثامن عشر من العقد">
+              <TextInput type="number" min={0} value={org.supervisorFee} onChange={(e) => setOrg({ ...org, supervisorFee: +e.target.value })} />
             </Field>
           </div>
           <button className="btn btn-primary mt-3 w-full sm:w-auto" onClick={saveSettings}>

@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, scope } from "@/lib/selectors";
 import { KWD, dateShort, methodLabel, monthAr, num } from "@/lib/format";
-import { Chip, Empty, KeyVal, PageHeader, SearchBox, Segmented, Sheet, useConfirm } from "@/components/ui";
+import { Chip, Empty, KeyVal, Money, PageHeader, SearchBox, Segmented, Sheet, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
 import { ContractForm, PaymentForm, TenantForm } from "@/components/forms";
@@ -104,7 +104,7 @@ export default function TenantsPage() {
                 </div>
                 <div className="shrink-0 text-left">
                   {due > 0 ? (
-                    <Chip tone="rose" icon="alert">{KWD(due, false)}</Chip>
+                    <Chip tone="rose" icon="alert">{KWD(due)}</Chip>
                   ) : (
                     <span dir="ltr" className="text-[11.5px] font-bold text-[var(--muted)]">{t.phone}</span>
                   )}
@@ -116,8 +116,8 @@ export default function TenantsPage() {
       ) : (
         <Empty
           icon="users"
-          title="ما فيه مستأجرين"
-          body={q ? "جرّب كلمة بحث ثانية." : "أضف أول مستأجر لهذه العمارة."}
+          title="لا يوجد مستأجرون"
+          body={q ? "جرّب كلمة بحث أخرى." : "أضف أول مستأجر لهذه العمارة."}
           action={allow("tenants.edit") ? <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}><Icon name="plus" size={14} /> إضافة</button> : undefined}
         />
       )}
@@ -189,7 +189,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
               {unit ? `${building?.name} · شقة ${unit.number}` : "غير مرتبط بوحدة"}
             </p>
             <div className="mt-1 flex flex-wrap gap-1">
-              {due.amount > 0 ? <Chip tone="rose" icon="alert">متأخر {KWD(due.amount, false)}</Chip> : <Chip tone="green" icon="check">منتظم</Chip>}
+              {due.amount > 0 ? <Chip tone="rose" icon="alert">متأخر {KWD(due.amount)}</Chip> : <Chip tone="green" icon="check">منتظم</Chip>}
               {tenant.nationality && <Chip tone="slate">{tenant.nationality}</Chip>}
             </div>
           </div>
@@ -256,7 +256,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
                             {u?.number ?? "—"}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12.5px] font-bold">{c.no} · {KWD(c.rent, false)} د.ك</p>
+                            <p className="text-[12.5px] font-bold">{c.no} · {KWD(c.rent)}</p>
                             <p className="text-[11px] text-[var(--muted)]">{dateShort(c.startDate)} — {dateShort(c.endDate)}</p>
                           </div>
                           <Chip tone={c.status === "active" ? "green" : c.status === "upcoming" ? "sky" : "slate"}>
@@ -267,7 +267,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
                     })}
                   </ul>
                 ) : (
-                  <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">ما فيه عقود</p>
+                  <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">لا توجد عقود</p>
                 )}
               </div>
 
@@ -293,12 +293,12 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
               <div className="grid grid-cols-2 gap-2">
                 <div className="card p-3 text-center">
                   <p className="text-[11px] text-[var(--muted)]">إجمالي المدفوع</p>
-                  <p className="display text-[17px] tabular-nums">{KWD(totalPaid, false)}</p>
+                  <Money v={totalPaid} size="lg" />
                 </div>
                 <div className="card p-3 text-center">
                   <p className="text-[11px] text-[var(--muted)]">المتأخر</p>
                   <p className="display text-[17px] tabular-nums" style={{ color: due.amount ? "#b3303b" : undefined }}>
-                    {KWD(due.amount, false)}
+                    <Money v={due.amount} size="lg" tone={due.amount ? "#b3303b" : undefined} />
                   </p>
                 </div>
               </div>
@@ -327,7 +327,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
                           {dateShort(p.paidAt)} · {methodLabel[p.method]} · {p.receiptNo}
                         </p>
                       </div>
-                      <span className="text-[13px] font-extrabold tabular-nums">{KWD(p.amount, false)}</span>
+                      <Money v={p.amount} />
                     </li>
                   ))}
                 </ul>

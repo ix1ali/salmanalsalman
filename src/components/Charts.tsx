@@ -31,7 +31,7 @@ export function BarChart({
         </span>
         {hover !== null && (
           <span className="mr-auto tabular-nums text-[var(--ink)]">
-            {items[hover].label} · {KWD(items[hover].a, false)} / {KWD(items[hover].b, false)}
+            {items[hover].label} · {KWD(items[hover].a)} / {KWD(items[hover].b)}
           </span>
         )}
       </div>
@@ -141,7 +141,7 @@ export function HBars({ items }: { items: { label: string; value: number; color?
         <li key={i.label}>
           <div className="mb-1 flex items-center justify-between text-[12px]">
             <span className="font-semibold text-[var(--ink-2)]">{i.label}</span>
-            <span className="font-extrabold tabular-nums">{KWD(i.value, false)}</span>
+            <span className="font-extrabold tabular-nums">{KWD(i.value)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--line)]">
             <div

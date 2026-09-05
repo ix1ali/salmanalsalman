@@ -161,7 +161,7 @@ export default function DocumentsPage() {
       ) : (
         <Empty
           icon="folder"
-          title="ما فيه مستندات"
+          title="لا توجد مستندات"
           body="ارفع صور البطاقات المدنية، العقود، الفواتير، ووثائق الملكية."
           action={allow("docs.upload") ? <button className="btn btn-primary btn-sm" onClick={() => setUploadOpen(true)}><Icon name="upload" size={14} /> رفع مستند</button> : undefined}
         />

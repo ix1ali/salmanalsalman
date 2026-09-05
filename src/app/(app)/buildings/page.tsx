@@ -98,8 +98,8 @@ export default function BuildingsPage() {
                     {[
                       ["وحدات", num(k.totalUnits)],
                       ["مؤجرة", num(k.occupied)],
-                      ["فاضية", num(k.vacant)],
-                      ...(allow("finance.view") ? [["الدخل", KWD(k.monthlyRentRoll, false)]] : [["أدوار", num(data.floors.filter((f) => f.buildingId === b.id).length)]]),
+                      ["شاغرة", num(k.vacant)],
+                      ...(allow("finance.view") ? [["الدخل", KWD(k.monthlyRentRoll)]] : [["أدوار", num(data.floors.filter((f) => f.buildingId === b.id).length)]]),
                     ].map(([l, v]) => (
                       <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2">
                         <p className="display text-[14px] tabular-nums">{v}</p>
@@ -133,7 +133,7 @@ export default function BuildingsPage() {
       ) : (
         <Empty
           icon="building"
-          title="ما فيه عمارات"
+          title="لا توجد عقارات مسجّلة"
           body="أضف عمارتك الأولى وحدد عدد الأدوار، ثم أضف الوحدات."
           action={allow("buildings.edit") ? <button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> إضافة عمارة</button> : undefined}
         />
@@ -175,7 +175,7 @@ export default function BuildingsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-bold">{f.name}</p>
                       <p className="text-[11px] text-[var(--muted)]">
-                        {num(f.units.length)} وحدة · مؤجرة {num(f.occupied)} · فاضية {num(f.vacant)}
+                        {num(f.units.length)} وحدة · مؤجرة {num(f.occupied)} · شاغرة {num(f.vacant)}
                       </p>
                     </div>
                     {allow("buildings.edit") && (
@@ -185,7 +185,7 @@ export default function BuildingsPage() {
                     )}
                   </li>
                 ))}
-                {!floors.length && <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">ما فيه أدوار</p>}
+                {!floors.length && <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">لا توجد أدوار</p>}
               </ul>
             </div>
 
