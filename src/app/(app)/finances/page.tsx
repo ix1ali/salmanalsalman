@@ -136,7 +136,7 @@ export default function FinancesPage() {
                 {totals.left ? `المتبقي ${KWD(totals.left)}` : "تم تحصيل كامل الإيجارات"}
               </p>
               <p className="text-[12px] text-[var(--muted)]">
-                دفع {num(totals.paidCount)} من {num(totals.count)} شقة
+                سُدِّدت {num(totals.paidCount)} وحدة من {num(totals.count)}
               </p>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function FinancesPage() {
                     <p className="truncate text-[11.5px] text-[var(--muted)]">
                       {r.payment
                         ? `دفع ${dateShort(r.payment.paidAt)} · ${methodLabel[r.payment.method]}`
-                        : `عليه ${KWD(r.contract.rent)}`}
+                        : `المستحق ${KWD(r.contract.rent)}`}
                     </p>
                   </div>
                   {r.payment ? (
