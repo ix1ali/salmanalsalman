@@ -93,8 +93,8 @@ export default function TenantsPage() {
                 onClick={() => setOpenId(t.id)}
                 className="card flex w-full items-center gap-3 p-2.5 text-right transition hover:shadow-[var(--sh-2)] active:scale-[.99]"
               >
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1b4f8a] to-[#0b2545] text-[15px] font-extrabold text-white">
-                  {t.name.slice(0, 1)}
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--primary-050)] text-[var(--primary)]">
+                  <Icon name="user" size={20} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13.5px] font-extrabold">{t.name}</p>
@@ -180,8 +180,8 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
       {dialog}
       <Sheet open={!!id} onClose={onClose} wide title={tenant.name}>
         <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gradient-to-l from-[var(--primary-050)] to-transparent p-3">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1b4f8a] to-[#0b2545] text-xl font-extrabold text-white">
-            {tenant.name.slice(0, 1)}
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-white">
+            <Icon name="user" size={26} />
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-[15px] font-extrabold">{tenant.name}</h3>

@@ -109,22 +109,20 @@ function UserMenu() {
   const router = useRouter();
   if (!user) return null;
 
-  const initials = user.displayName.split(" ").slice(0, 2).map((w) => w[0]).join("");
-
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1b4f8a] to-[#0b2545] text-[12px] font-extrabold text-white shadow-[var(--sh-1)]"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-white shadow-[var(--sh-1)]"
         aria-label="حسابي"
       >
-        {initials}
+        <Icon name="user" size={17} />
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="حسابي">
         <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#1b4f8a] to-[#0b2545] font-extrabold text-white">
-            {initials}
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--primary)] text-white">
+            <Icon name="user" size={22} />
           </span>
           <div>
             <p className="font-extrabold">{user.displayName}</p>

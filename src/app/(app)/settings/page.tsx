@@ -50,8 +50,8 @@ export default function SettingsPage() {
       <div className="card card-lg p-4">
         <SectionTitle>حسابي</SectionTitle>
         <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-[#1b4f8a] to-[#0b2545] text-lg font-extrabold text-white">
-            {user?.displayName.slice(0, 1)}
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--primary)] text-white">
+            <Icon name="user" size={22} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-extrabold">{user?.displayName}</p>

@@ -64,11 +64,11 @@ export default function UsersPage() {
           <div key={u.id} className="card p-3">
             <div className="flex items-center gap-3">
               <span
-                className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-[14px] font-extrabold text-white ${
-                  u.active ? "bg-gradient-to-br from-[#1b4f8a] to-[#0b2545]" : "bg-[#a5b6c4]"
+                className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-white ${
+                  u.active ? "bg-[var(--primary)]" : "bg-[#a5b6c4]"
                 }`}
               >
-                {u.displayName.slice(0, 1)}
+                <Icon name={u.role === "admin" ? "shield" : u.role === "viewer" ? "eye" : "key"} size={19} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-extrabold">
