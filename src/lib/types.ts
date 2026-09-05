@@ -2,7 +2,7 @@
 
 export type Role = "admin" | "viewer" | "guard";
 
-export type UnitStatus = "occupied" | "vacant" | "maintenance" | "reserved";
+export type UnitStatus = "occupied" | "vacant";
 export type UnitKind = "apartment" | "shop" | "storage" | "office" | "parking";
 
 export type PayMethod = "cash" | "knet" | "transfer" | "cheque" | "link";
@@ -72,6 +72,10 @@ export interface Unit {
   baseRent: number;      // د.ك
   meterNo?: string;      // رقم عداد الكهرباء
   notes?: string;
+  /** تعليم الشقة بتنبيه يظهر بالأحمر في المخطط */
+  flagged?: boolean;
+  flagNote?: string;
+  flaggedAt?: string;
   createdAt: string;
 }
 
@@ -141,26 +145,6 @@ export interface Expense {
   createdAt: string;
 }
 
-export type TicketStatus = "new" | "in_progress" | "done" | "cancelled";
-export type TicketPriority = "low" | "normal" | "high" | "urgent";
-
-export interface Ticket {
-  id: string;
-  no: string;
-  buildingId: string;
-  unitId?: string;
-  tenantId?: string;
-  title: string;
-  description?: string;
-  status: TicketStatus;
-  priority: TicketPriority;
-  cost?: number;
-  assignee?: string;
-  createdBy: string;
-  createdAt: string;
-  closedAt?: string;
-}
-
 export interface DocMeta {
   id: string;
   ownerType: OwnerType;
@@ -194,7 +178,6 @@ export interface AppData {
   contracts: Contract[];
   payments: Payment[];
   expenses: Expense[];
-  tickets: Ticket[];
   docs: DocMeta[];
   audit: AuditEntry[];
   settings: {

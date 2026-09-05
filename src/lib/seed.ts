@@ -1,5 +1,5 @@
 import type {
-  AppData, Building, Contract, Expense, Floor, Payment, Tenant, Ticket, Unit, User,
+  AppData, Building, Contract, Expense, Floor, Payment, Tenant, Unit, User,
   ExpenseCategory, PayMethod, UnitStatus,
 } from "./types";
 import { hashPassword, randomSalt } from "./crypto";
@@ -49,8 +49,7 @@ function makeBuilding(
 
     const mk = (kind: Unit["kind"], number: string, idx: number) => {
       const roll = r();
-      let status: UnitStatus = "occupied";
-      if (roll > occupancy) status = roll > occupancy + (1 - occupancy) * 0.78 ? "maintenance" : "vacant";
+      const status: UnitStatus = roll > occupancy ? "vacant" : "occupied";
       const rooms = kind === "apartment" ? between(r, 1, 3) : 1;
       const area = kind === "shop" ? between(r, 28, 70)
         : kind === "storage" ? between(r, 12, 25)
@@ -73,6 +72,7 @@ function makeBuilding(
         meterNo: `${between(r, 10000, 99999)}`,
         createdAt: now,
         notes: idx === 0 && kind === "apartment" ? "قريبة من المصعد" : undefined,
+        flagged: false,
       });
     };
 
@@ -273,42 +273,32 @@ export async function buildSeed(): Promise<AppData> {
     }
   });
 
-  const ticketSeeds: [string, string, Ticket["status"], Ticket["priority"]][] = [
-    ["تسريب ماء في الحمام", "تسريب من ماسورة الحمام الرئيسي", "new", "high"],
-    ["المصعد يتوقف بين الأدوار", "المصعد الأيمن يقف بين الدور ٣ و٤", "in_progress", "urgent"],
-    ["مكيف الصالة لا يبرّد", "يحتاج تعبئة فريون", "new", "normal"],
-    ["إنارة الدرج مطفية", "لمبات الدور الخامس", "done", "low"],
-    ["باب المدخل لا يقفل", "قفل المدخل الرئيسي تالف", "in_progress", "high"],
-    ["انسداد في المجاري", "الدور الأول جهة الشمال", "new", "urgent"],
-    ["طلاء الممر", "الممر بحاجة دهان", "done", "low"],
-    ["عطل في سخان الماء", "السخان لا يعمل نهائيًا", "new", "normal"],
+  // تعليم بعض الشقق بتنبيهات — بديل نظام البلاغات المعقّد
+  const flagNotes = [
+    "تسريب ماء في الحمام",
+    "المستأجر متأخر شهرين — متابعة",
+    "المكيف يحتاج صيانة",
+    "الشقة تحتاج دهان قبل التأجير",
+    "شكوى إزعاج من الجيران",
   ];
-  const tickets: Ticket[] = ticketSeeds.map(([title, description, status, priority], i) => {
-    const u = occupied[between(r, 0, occupied.length - 1)];
-    return {
-      id: `tk-${i}`,
-      no: `ص-${100 + i}`,
-      buildingId: u.buildingId,
-      unitId: u.id,
-      tenantId: `t-${u.id}`,
-      title, description, status, priority,
-      cost: status === "done" ? between(r, 10, 120) : undefined,
-      assignee: status !== "new" ? pick(r, ["فني الصيانة", "شركة المصاعد", "الحارس"]) : undefined,
-      createdBy: "guard",
-      createdAt: iso(shift(now, -between(r, 1, 40))),
-      closedAt: status === "done" ? iso(shift(now, -between(r, 1, 10))) : undefined,
-    };
+  const flagTargets = units.filter((u) => u.kind === "apartment");
+  flagNotes.forEach((note, i) => {
+    const u = flagTargets[between(r, 0, flagTargets.length - 1)];
+    if (!u || u.flagged) return;
+    u.flagged = true;
+    u.flagNote = note;
+    u.flaggedAt = iso(shift(now, -between(r, 1, 25)));
   });
 
   return {
-    version: 1,
-    users, buildings, floors, units, tenants, contracts, payments, expenses, tickets,
+    version: 2,
+    users, buildings, floors, units, tenants, contracts, payments, expenses,
     docs: [],
     audit: [{ id: "a0", at: nowIso, actor: "system", action: "تهيئة", detail: "تم إنشاء بيانات النظام الأولية" }],
     settings: {
-      orgName: "إدارة أملاك سلمان السلمان",
+      orgName: "إدارة عقار سلمان السلمان",
       currency: "KWD",
-      sessionMinutes: 480,
+      sessionMinutes: 43200,
       reminderDaysBeforeDue: 3,
       contractAlertDays: 45,
     },

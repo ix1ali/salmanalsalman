@@ -12,7 +12,7 @@ import type { DocKind, OwnerType } from "@/lib/types";
 
 const ownerLabel: Record<OwnerType, string> = {
   tenant: "مستأجر", unit: "وحدة", building: "عمارة", contract: "عقد",
-  payment: "وصل", expense: "مصروف", maintenance: "بلاغ",
+  payment: "وصل", expense: "مصروف", maintenance: "تنبيه",
 };
 
 export default function DocumentsPage() {

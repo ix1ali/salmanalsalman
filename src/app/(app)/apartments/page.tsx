@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { floorStats, tenantOfUnit } from "@/lib/selectors";
-import { KWD, kindLabel, num, pct, statusLabel } from "@/lib/format";
-import { Chip, Empty, PageHeader, SearchBox, Segmented } from "@/components/ui";
+import { tenantOfUnit } from "@/lib/selectors";
+import { KWD, kindLabel, num } from "@/lib/format";
+import { Empty, PageHeader, SearchBox } from "@/components/ui";
 import { Icon } from "@/components/Icons";
-import BuildingFacade, { STATUS_COLOR } from "@/components/BuildingFacade";
-import UnitSheet, { statusTone } from "@/components/UnitSheet";
+import UnitSheet from "@/components/UnitSheet";
 import { BulkUnitsForm, FloorForm, UnitForm } from "@/components/forms";
-import type { Unit, UnitStatus } from "@/lib/types";
+import type { Unit } from "@/lib/types";
+import { UNIT_COLOR, unitColor } from "@/lib/unitColor";
 
 export default function ApartmentsPage() {
   const { data, activeBuilding, setActiveBuilding } = useStore();
@@ -19,60 +19,68 @@ export default function ApartmentsPage() {
   const buildingId = activeBuilding === "all" ? data.buildings[0]?.id ?? "" : activeBuilding;
   const building = data.buildings.find((b) => b.id === buildingId);
 
-  const [view, setView] = useState<"plan" | "list">("plan");
-  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
+  const [openFloors, setOpenFloors] = useState<string[]>([]);
   const [openUnit, setOpenUnit] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | UnitStatus>("all");
   const [addOpen, setAddOpen] = useState<null | "menu" | "single" | "bulk" | "floor">(null);
 
-  const floors = useMemo(() => floorStats(data, buildingId), [data, buildingId]);
-  useEffect(() => setSelectedFloor(null), [buildingId]);
-
-  const allUnits = useMemo(() => data.units.filter((u) => u.buildingId === buildingId), [data.units, buildingId]);
+  const units = useMemo(() => data.units.filter((u) => u.buildingId === buildingId), [data.units, buildingId]);
 
   const counts = useMemo(
     () => ({
-      all: allUnits.length,
-      occupied: allUnits.filter((u) => u.status === "occupied").length,
-      vacant: allUnits.filter((u) => u.status === "vacant").length,
-      maintenance: allUnits.filter((u) => u.status === "maintenance").length,
-      reserved: allUnits.filter((u) => u.status === "reserved").length,
+      occupied: units.filter((u) => u.status === "occupied" && !u.flagged).length,
+      vacant: units.filter((u) => u.status === "vacant" && !u.flagged).length,
+      flagged: units.filter((u) => u.flagged).length,
     }),
-    [allUnits]
+    [units]
   );
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return allUnits.filter((u) => {
-      if (status !== "all" && u.status !== status) return false;
-      if (!needle) return true;
+  const floors = useMemo(
+    () =>
+      data.floors
+        .filter((f) => f.buildingId === buildingId)
+        .sort((a, b) => b.level - a.level)
+        .map((f) => ({ ...f, units: units.filter((u) => u.floorId === f.id) })),
+    [data.floors, buildingId, units]
+  );
+
+  // البحث يفتح كل الأدوار ويعرض المطابق فقط
+  const needle = q.trim().toLowerCase();
+  const matches = useMemo(() => {
+    if (!needle) return null;
+    const set = new Set<string>();
+    units.forEach((u) => {
       const t = tenantOfUnit(data, u.id).tenant;
-      return (
+      if (
         u.number.toLowerCase().includes(needle) ||
         (t?.name ?? "").toLowerCase().includes(needle) ||
-        (t?.phone ?? "").includes(needle)
-      );
+        (t?.phone ?? "").includes(needle) ||
+        (t?.civilId ?? "").includes(needle)
+      ) set.add(u.id);
     });
-  }, [allUnits, q, status, data]);
+    return set;
+  }, [needle, units, data]);
+
+  const toggle = (id: string) =>
+    setOpenFloors((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   if (!building) {
     return (
       <Empty
         icon="building"
-        title="ما فيه عمارات بعد"
-        body="أضف عمارتك الأولى لتبدأ."
+        title="ما فيه عمارات"
+        body="أضف عمارتك الأولى."
         action={<a href="/buildings" className="btn btn-primary"><Icon name="plus" size={16} /> إضافة عمارة</a>}
       />
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
-        title={building.name}
-        subtitle={`${num(allUnits.length)} وحدة · إشغال ${pct(counts.all ? (counts.occupied / counts.all) * 100 : 0)}`}
-        icon="building"
+        title="الشقق"
+        subtitle={`${building.name} · ${num(units.length)} وحدة`}
+        icon="grid"
         actions={
           allow("units.edit") ? (
             <button className="btn btn-primary btn-sm" onClick={() => setAddOpen("menu")}>
@@ -82,7 +90,6 @@ export default function ApartmentsPage() {
         }
       />
 
-      {/* اختيار العمارة */}
       {data.buildings.length > 1 && (
         <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
           {data.buildings.map((b) => (
@@ -102,110 +109,139 @@ export default function ApartmentsPage() {
         </div>
       )}
 
-      {/* ثلاثة أرقام فقط */}
-      <div className="grid grid-cols-3 gap-2">
-        {([
-          ["occupied", "مؤجرة"],
-          ["vacant", "فاضية"],
-          ["maintenance", "صيانة"],
-        ] as const).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => { setStatus(status === k ? "all" : k); setView("list"); }}
-            className="card p-3 text-center transition active:scale-[.97]"
-            style={status === k ? { borderColor: STATUS_COLOR[k] } : undefined}
-          >
-            <p className="display text-[20px] leading-none tabular-nums" style={{ color: STATUS_COLOR[k] }}>
-              {num(counts[k])}
-            </p>
-            <p className="mt-1 text-[11.5px] text-[var(--muted)]">{label}</p>
-          </button>
-        ))}
+      <SearchBox value={q} onChange={setQ} placeholder="بحث بالاسم، رقم الشقة، الهاتف…" />
+
+      {/* دليل مختصر */}
+      <div className="flex items-center justify-center gap-4 rounded-xl bg-[var(--surface)] py-2 text-[12px] font-bold shadow-[var(--sh-1)]">
+        <Legend color={UNIT_COLOR.occupied} label="مؤجرة" n={counts.occupied} />
+        <Legend color={UNIT_COLOR.vacant} label="فاضية" n={counts.vacant} />
+        <Legend color={UNIT_COLOR.flagged} label="عليها تنبيه" n={counts.flagged} />
       </div>
 
-      <Segmented
-        value={view}
-        onChange={setView}
-        options={[
-          { value: "plan", label: "مخطط العمارة" },
-          { value: "list", label: "قائمة الوحدات", count: allUnits.length },
-        ]}
-      />
+      {/* الأدوار */}
+      <div className="space-y-2">
+        {floors.map((f) => {
+          const shown = matches ? f.units.filter((u) => matches.has(u.id)) : f.units;
+          if (matches && !shown.length) return null;
+          const open = matches ? true : openFloors.includes(f.id);
+          const occ = f.units.filter((u) => u.status === "occupied").length;
 
-      {view === "plan" ? (
-        <>
-          <BuildingFacade
-            floors={floors}
-            selected={selectedFloor}
-            onSelectFloor={(id) => setSelectedFloor(id || null)}
-            onSelectUnit={setOpenUnit}
-          />
-          {!selectedFloor && (
-            <p className="text-center text-[12px] text-[var(--muted)]">اضغط على أي دور لعرض شققه</p>
-          )}
-        </>
-      ) : (
-        <>
-          <SearchBox value={q} onChange={setQ} placeholder="رقم الشقة أو اسم المستأجر…" />
-          <Segmented
-            value={status}
-            onChange={setStatus}
-            size="sm"
-            options={[
-              { value: "all", label: "الكل", count: counts.all },
-              { value: "occupied", label: "مؤجرة", count: counts.occupied },
-              { value: "vacant", label: "فاضية", count: counts.vacant },
-              { value: "maintenance", label: "صيانة", count: counts.maintenance },
-            ]}
-          />
+          return (
+            <div key={f.id} className="card overflow-hidden">
+              <button
+                onClick={() => toggle(f.id)}
+                className="flex w-full items-center gap-3 p-3.5 text-right transition hover:bg-[var(--surface-2)]"
+              >
+                <Icon
+                  name="chevronDown"
+                  size={17}
+                  className="shrink-0 text-[var(--muted)] transition-transform"
+                  style={{ transform: open ? "rotate(180deg)" : "none" }}
+                />
+                <span className="flex-1">
+                  <span className="block text-[15px] font-extrabold">{f.name}</span>
+                  <span className="block text-[11.5px] text-[var(--muted)]">
+                    {num(f.units.length)} وحدة · مؤجرة {num(occ)}
+                  </span>
+                </span>
+                {f.units.some((u) => u.flagged) && (
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--danger-050)] text-[#b3303b]">
+                    <Icon name="alert" size={13} />
+                  </span>
+                )}
+                <span
+                  className="h-9 w-1.5 shrink-0 rounded-full"
+                  style={{
+                    background: `linear-gradient(to bottom, ${UNIT_COLOR.occupied} ${
+                      f.units.length ? (occ / f.units.length) * 100 : 0
+                    }%, var(--line) 0)`,
+                  }}
+                />
+              </button>
 
-          {filtered.length ? (
-            <div className="space-y-4">
-              {floors
-                .filter((f) => filtered.some((u) => u.floorId === f.floorId))
-                .map((f) => (
-                  <div key={f.floorId}>
-                    <h3 className="mb-1.5 text-[13px] font-extrabold text-[var(--ink-2)]">{f.name}</h3>
-                    <div className="space-y-1.5">
-                      {filtered
-                        .filter((u) => u.floorId === f.floorId)
-                        .map((u) => <UnitRow key={u.id} unit={u} onOpen={setOpenUnit} />)}
+              {open && (
+                <div className="border-t border-[var(--line)] bg-[var(--surface-2)] p-2.5">
+                  {shown.length ? (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                      {shown.map((u) => <UnitCard key={u.id} unit={u} onOpen={setOpenUnit} />)}
                     </div>
-                  </div>
-                ))}
+                  ) : (
+                    <p className="py-4 text-center text-[12.5px] text-[var(--muted)]">ما فيه وحدات في هذا الدور</p>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <Empty icon="search" title="ما فيه نتائج" />
-          )}
-        </>
-      )}
+          );
+        })}
+      </div>
+
+      {matches && matches.size === 0 && <Empty icon="search" title="ما فيه نتائج" />}
 
       <UnitSheet unitId={openUnit} onClose={() => setOpenUnit(null)} />
 
-      {/* قائمة الإضافة */}
-      {addOpen === "menu" && allow("units.edit") && (
-        <AddMenu onClose={() => setAddOpen(null)} onPick={setAddOpen} />
-      )}
-      {addOpen === "single" && <UnitForm open onClose={() => setAddOpen(null)} buildingId={buildingId} floorId={selectedFloor ?? undefined} />}
+      {addOpen === "menu" && allow("units.edit") && <AddMenu onClose={() => setAddOpen(null)} onPick={setAddOpen} />}
+      {addOpen === "single" && <UnitForm open onClose={() => setAddOpen(null)} buildingId={buildingId} />}
       {addOpen === "bulk" && <BulkUnitsForm open onClose={() => setAddOpen(null)} buildingId={buildingId} />}
       {addOpen === "floor" && <FloorForm open onClose={() => setAddOpen(null)} buildingId={buildingId} />}
     </div>
   );
 }
 
-/* ------------------------- قائمة الإضافة السريعة ------------------------- */
+function Legend({ color, label, n }: { color: string; label: string; n: number }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+      <span className="text-[var(--ink-2)]">{label}</span>
+      <span className="tabular-nums" style={{ color }}>{num(n)}</span>
+    </span>
+  );
+}
+
+/** بطاقة الشقة: الرقم كبير، اسم المستأجر، الإيجار — بحدّ ملوّن حسب الحالة. */
+function UnitCard({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }) {
+  const { data } = useStore();
+  const { allow } = useAuth();
+  const { tenant } = tenantOfUnit(data, unit.id);
+  const c = unitColor(unit);
+
+  return (
+    <button
+      onClick={() => onOpen(unit.id)}
+      className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl border-2 bg-[var(--surface)] px-2 py-3 transition active:scale-[.97]"
+      style={{ borderColor: c }}
+    >
+      {unit.flagged && (
+        <span className="absolute left-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[var(--danger-050)] text-[#b3303b]">
+          <Icon name="alert" size={11} strokeWidth={2.4} />
+        </span>
+      )}
+      <span className="display text-[20px] leading-none">{unit.number}</span>
+      <span className="mt-1 line-clamp-1 text-[11px] text-[var(--muted)]">
+        {tenant?.name ?? (unit.kind === "apartment" ? "فاضية" : kindLabel[unit.kind])}
+      </span>
+      {allow("finance.view") && (
+        <span className="text-[12px] font-extrabold tabular-nums" style={{ color: c }}>
+          {KWD(unit.baseRent, false)} د.ك
+        </span>
+      )}
+    </button>
+  );
+}
 
 function AddMenu({ onClose, onPick }: { onClose: () => void; onPick: (k: "single" | "bulk" | "floor") => void }) {
   const items: [("single" | "bulk" | "floor"), string, string, string][] = [
-    ["single", "door", "شقة واحدة", "أضف وحدة بأرقامها ومساحتها"],
-    ["bulk", "box", "عدة شقق دفعة", "مثلاً ١٢ شقة في دور واحد"],
-    ["floor", "layers", "دور جديد", "أضف دورًا للعمارة"],
+    ["single", "door", "شقة واحدة", "رقمها ومساحتها وإيجارها"],
+    ["bulk", "box", "عدة شقق مرة وحدة", "مثلاً ١٢ شقة في دور"],
+    ["floor", "layers", "دور جديد", "أضف دور للعمارة"],
   ];
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center" onClick={onClose}>
       <div className="absolute inset-0 bg-[#0b2545]/45" />
-      <div className="anim-sheet relative w-full rounded-t-[26px] bg-white p-4 shadow-[var(--sh-3)] sm:max-w-sm sm:rounded-[24px]" onClick={(e) => e.stopPropagation()}>
-        <p className="mb-3 text-center text-[15px] font-extrabold">ماذا تريد أن تضيف؟</p>
+      <div
+        className="anim-sheet relative w-full rounded-t-[26px] bg-white p-4 shadow-[var(--sh-3)] sm:max-w-sm sm:rounded-[24px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="mb-3 text-center text-[15px] font-extrabold">وش تبي تضيف؟</p>
         <div className="space-y-2">
           {items.map(([k, icon, title, sub]) => (
             <button
@@ -227,37 +263,5 @@ function AddMenu({ onClose, onPick }: { onClose: () => void; onPick: (k: "single
         <button className="btn btn-ghost mt-3 w-full" onClick={onClose}>إلغاء</button>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------- صف وحدة ------------------------------- */
-
-function UnitRow({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }) {
-  const { data } = useStore();
-  const { allow } = useAuth();
-  const { tenant } = tenantOfUnit(data, unit.id);
-  const color = STATUS_COLOR[unit.status];
-  return (
-    <button
-      onClick={() => onOpen(unit.id)}
-      className="card flex w-full items-center gap-3 p-2.5 text-right transition hover:shadow-[var(--sh-2)] active:scale-[.99]"
-    >
-      <span
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[13px] font-extrabold text-white"
-        style={{ background: color }}
-      >
-        {unit.number}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-bold">{tenant?.name ?? statusLabel[unit.status]}</p>
-        <p className="truncate text-[11.5px] text-[var(--muted)]">
-          {kindLabel[unit.kind]} · {unit.area ?? "—"}م² · {unit.rooms ?? 0} غرف
-        </p>
-      </div>
-      <div className="shrink-0 text-left">
-        {allow("finance.view") && <p className="text-[12.5px] font-extrabold tabular-nums">{KWD(unit.baseRent, false)}</p>}
-        <Chip tone={statusTone[unit.status]}>{statusLabel[unit.status]}</Chip>
-      </div>
-    </button>
   );
 }

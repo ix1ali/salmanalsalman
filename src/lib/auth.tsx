@@ -12,7 +12,7 @@ const IDLE_KEY = "aqar:last-activity";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_SECONDS = 90;
-const IDLE_MINUTES = 20;
+const IDLE_MINUTES = 720;   // 12 ساعة — لا نطرد المستخدم أثناء العمل
 
 interface Session { userId: string; iat: number; exp: number; fp: string }
 interface Lock { fails: number; until: number }

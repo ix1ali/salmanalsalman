@@ -70,8 +70,6 @@ export interface Kpis {
   totalUnits: number;
   occupied: number;
   vacant: number;
-  maintenance: number;
-  reserved: number;
   occupancyRate: number;
   monthlyRentRoll: number;
   collectedThisMonth: number;
@@ -82,7 +80,7 @@ export interface Kpis {
   arrearsTotal: number;
   arrearsCount: number;
   expiringSoon: number;
-  openTickets: number;
+  flaggedUnits: number;
   tenantsCount: number;
 }
 
@@ -100,7 +98,6 @@ export function kpis(data: AppData, buildingId: string): Kpis {
     const d = new Date(c.endDate).getTime() - now;
     return d >= 0 && d <= alertDays * 86400000;
   }).length;
-  const tickets = buildingId === "all" ? data.tickets : data.tickets.filter((t) => t.buildingId === buildingId);
 
   const by = (st: Unit["status"]) => s.units.filter((u) => u.status === st).length;
   const totalUnits = s.units.length;
@@ -110,8 +107,6 @@ export function kpis(data: AppData, buildingId: string): Kpis {
     totalUnits,
     occupied,
     vacant: by("vacant"),
-    maintenance: by("maintenance"),
-    reserved: by("reserved"),
     occupancyRate: totalUnits ? (occupied / totalUnits) * 100 : 0,
     monthlyRentRoll,
     collectedThisMonth,
@@ -122,7 +117,7 @@ export function kpis(data: AppData, buildingId: string): Kpis {
     arrearsTotal: ar.reduce((a, x) => a + x.amount, 0),
     arrearsCount: ar.length,
     expiringSoon,
-    openTickets: tickets.filter((t) => t.status === "new" || t.status === "in_progress").length,
+    flaggedUnits: s.units.filter((u) => u.flagged).length,
     tenantsCount: new Set(active.map((c) => c.tenantId)).size,
   };
 }
@@ -138,7 +133,7 @@ export function monthlySeries(data: AppData, buildingId: string, months = 6): Mo
   });
 }
 
-/** Occupancy + income breakdown per floor, used by the 3D tower. */
+/** Occupancy + income breakdown per floor. */
 export interface FloorStat {
   floorId: string;
   level: number;
@@ -146,7 +141,7 @@ export interface FloorStat {
   units: Unit[];
   occupied: number;
   vacant: number;
-  maintenance: number;
+  flagged: number;
   rent: number;
 }
 
@@ -162,7 +157,7 @@ export function floorStats(data: AppData, buildingId: string): FloorStat[] {
         units,
         occupied: units.filter((u) => u.status === "occupied").length,
         vacant: units.filter((u) => u.status === "vacant").length,
-        maintenance: units.filter((u) => u.status === "maintenance").length,
+        flagged: units.filter((u) => u.flagged).length,
         rent: units.reduce((a, u) => a + (u.status === "occupied" ? u.baseRent : 0), 0),
       };
     })

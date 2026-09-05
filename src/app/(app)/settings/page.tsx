@@ -112,7 +112,7 @@ export default function SettingsPage() {
             ["وصولات", num(data.payments.length)],
             ["مصاريف", num(data.expenses.length)],
             ["مستندات", num(data.docs.length)],
-            ["بلاغات", num(data.tickets.length)],
+            ["تنبيهات", num(data.units.filter((u) => u.flagged).length)],
           ].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2.5 text-center">
               <p className="display text-[16px] tabular-nums">{v}</p>

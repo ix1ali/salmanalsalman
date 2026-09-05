@@ -93,15 +93,15 @@ export default function FinancesPage() {
   return (
     <div className="space-y-4">
       {dialog}
-      <PageHeader title="المالية" subtitle="تحصيل الإيجار والمصاريف" icon="wallet" />
+      <PageHeader title="الإيجارات" subtitle="مين دفع ومين ما دفع" icon="wallet" />
 
       <Segmented
         value={tab}
         onChange={setTab}
         options={[
-          { value: "collect", label: "التحصيل" },
+          { value: "collect", label: "هذا الشهر" },
           { value: "expenses", label: "المصاريف" },
-          { value: "arrears", label: "المتأخرات", count: ar.length },
+          { value: "arrears", label: "ما دفعوا", count: ar.length },
         ]}
       />
 
@@ -120,11 +120,11 @@ export default function FinancesPage() {
           <div className="card card-lg p-4">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[12px] text-[var(--muted)]">المحصّل</p>
+                <p className="text-[12px] text-[var(--muted)]">تم تحصيله</p>
                 <p className="display text-[26px] leading-none">{KWD(totals.got, false)}</p>
               </div>
               <div className="text-left">
-                <p className="text-[12px] text-[var(--muted)]">المستحق</p>
+                <p className="text-[12px] text-[var(--muted)]">المطلوب</p>
                 <p className="display text-[18px] leading-none text-[var(--muted)]">{KWD(totals.due, false)}</p>
               </div>
             </div>
@@ -133,10 +133,10 @@ export default function FinancesPage() {
             </div>
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
               <p className="text-[12.5px] font-bold" style={{ color: totals.left ? "var(--gold-600)" : "var(--ok)" }}>
-                {totals.left ? `باقي ${KWD(totals.left)}` : "تم تحصيل كل الإيجارات 👌"}
+                {totals.left ? `باقي ${KWD(totals.left)}` : "الكل دفع 👌"}
               </p>
               <p className="text-[12px] text-[var(--muted)]">
-                سدّد {num(totals.paidCount)} من {num(totals.count)} · {pct(totals.due ? (totals.got / totals.due) * 100 : 0)}
+                دفع {num(totals.paidCount)} من {num(totals.count)} شقة
               </p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function FinancesPage() {
               onClick={() => setOnlyUnpaid((v) => !v)}
               className={`btn btn-sm shrink-0 ${onlyUnpaid ? "btn-primary" : "btn-ghost"}`}
             >
-              <Icon name="filter" size={14} /> غير المسدد
+              <Icon name="filter" size={14} /> اللي ما دفع
             </button>
           </div>
 
@@ -165,8 +165,8 @@ export default function FinancesPage() {
                     <p className="truncate text-[13.5px] font-bold">{r.tenant?.name ?? "—"}</p>
                     <p className="truncate text-[11.5px] text-[var(--muted)]">
                       {r.payment
-                        ? `سدّد ${dateShort(r.payment.paidAt)} · ${methodLabel[r.payment.method]}`
-                        : `مستحق ${KWD(r.contract.rent)}`}
+                        ? `دفع ${dateShort(r.payment.paidAt)} · ${methodLabel[r.payment.method]}`
+                        : `عليه ${KWD(r.contract.rent)}`}
                     </p>
                   </div>
                   {r.payment ? (
@@ -179,13 +179,13 @@ export default function FinancesPage() {
                       <Icon name="plus" size={14} /> تسجيل
                     </button>
                   ) : (
-                    <Chip tone="gold">غير مسدد</Chip>
+                    <Chip tone="gold">ما دفع</Chip>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <Empty icon="checkCircle" title={onlyUnpaid ? "الكل سدّد هذا الشهر" : "ما فيه عقود سارية لهذا الشهر"} />
+            <Empty icon="checkCircle" title={onlyUnpaid ? "الكل دفع هذا الشهر" : "ما فيه عقود سارية لهذا الشهر"} />
           )}
         </>
       )}
@@ -251,7 +251,7 @@ export default function FinancesPage() {
         <>
           <div className="card card-lg flex items-center justify-between p-4">
             <div>
-              <p className="text-[12px] text-[var(--muted)]">إجمالي المتأخرات</p>
+              <p className="text-[12px] text-[var(--muted)]">إجمالي اللي ما تحصّل</p>
               <p className="display text-[26px] leading-none text-[#b3303b]">
                 {KWD(ar.reduce((a, x) => a + x.amount, 0), false)}
               </p>
@@ -310,7 +310,7 @@ export default function FinancesPage() {
       {/* روابط سريعة */}
       <div className="grid grid-cols-2 gap-2">
         {allow("receipts.view") && (
-          <Link href="/receipts" className="card flex items-center gap-2.5 p-3 transition hover:shadow-[var(--sh-2)]">
+          <Link href="/print" className="card flex items-center gap-2.5 p-3 transition hover:shadow-[var(--sh-2)]">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--primary-050)] text-[var(--primary)]">
               <Icon name="receipt" size={17} />
             </span>
@@ -318,11 +318,11 @@ export default function FinancesPage() {
           </Link>
         )}
         {allow("reports.view") && (
-          <Link href="/reports" className="card flex items-center gap-2.5 p-3 transition hover:shadow-[var(--sh-2)]">
+          <Link href="/print" className="card flex items-center gap-2.5 p-3 transition hover:shadow-[var(--sh-2)]">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--primary-050)] text-[var(--primary)]">
               <Icon name="chart" size={17} />
             </span>
-            <span className="text-[13px] font-bold">الكشوفات المالية</span>
+            <span className="text-[13px] font-bold">الكشوفات</span>
           </Link>
         )}
       </div>

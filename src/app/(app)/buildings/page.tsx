@@ -34,7 +34,6 @@ export default function BuildingsPage() {
       d.contracts = d.contracts.filter((x) => x.buildingId !== b.id);
       d.payments = d.payments.filter((x) => x.buildingId !== b.id);
       d.expenses = d.expenses.filter((x) => x.buildingId !== b.id);
-      d.tickets = d.tickets.filter((x) => x.buildingId !== b.id);
     }, { action: "حذف عمارة", detail: b.name, actor: user?.username });
     setOpenId(null);
     setActiveBuilding("all");
@@ -49,7 +48,6 @@ export default function BuildingsPage() {
       d.units = d.units.filter((u) => u.floorId !== floorId);
       d.contracts = d.contracts.filter((c) => !unitIds.has(c.unitId));
       d.payments = d.payments.filter((p) => !unitIds.has(p.unitId));
-      d.tickets = d.tickets.filter((t) => !t.unitId || !unitIds.has(t.unitId));
     }, { action: "حذف دور", detail: name, actor: user?.username });
   };
 

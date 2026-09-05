@@ -1,4 +1,4 @@
-import type { ExpenseCategory, PayMethod, Role, TicketPriority, TicketStatus, UnitKind, UnitStatus, DocKind, ContractStatus } from "./types";
+import type { ExpenseCategory, PayMethod, Role, UnitKind, UnitStatus, DocKind, ContractStatus } from "./types";
 
 // أرقام لاتينية مع نصوص عربية — الأسهل قراءةً في الاستخدام التجاري بالكويت
 const AR = "ar-KW-u-nu-latn";
@@ -64,13 +64,13 @@ export const roleLabel: Record<Role, string> = {
 };
 
 export const roleDesc: Record<Role, string> = {
-  admin: "صلاحية كاملة على كل شيء",
-  viewer: "اطلاع فقط بدون تعديل",
-  guard: "الشقق والبلاغات فقط",
+  admin: "يشوف ويعدل كل شيء",
+  viewer: "يشوف بس، ما يعدل",
+  guard: "الشقق والتنبيهات فقط",
 };
 
 export const statusLabel: Record<UnitStatus, string> = {
-  occupied: "مؤجرة", vacant: "فاضية", maintenance: "صيانة", reserved: "محجوزة",
+  occupied: "مؤجرة", vacant: "فاضية",
 };
 
 export const kindLabel: Record<UnitKind, string> = {
@@ -87,14 +87,6 @@ export const expenseLabel: Record<ExpenseCategory, string> = {
   internet: "إنترنت", insurance: "تأمين", other: "أخرى",
 };
 
-export const ticketStatusLabel: Record<TicketStatus, string> = {
-  new: "جديد", in_progress: "جاري", done: "تم", cancelled: "ملغي",
-};
-
-export const priorityLabel: Record<TicketPriority, string> = {
-  low: "منخفضة", normal: "عادية", high: "عالية", urgent: "طارئة",
-};
-
 export const docLabel: Record<DocKind, string> = {
   civil_id: "بطاقة مدنية", passport: "جواز سفر", contract: "عقد", receipt: "وصل",
   statement: "كشف حساب", cheque: "شيك", license: "ترخيص", deed: "وثيقة ملكية",
@@ -105,9 +97,11 @@ export const contractStatusLabel: Record<ContractStatus, string> = {
   active: "ساري", expired: "منتهي", terminated: "مفسوخ", upcoming: "قادم",
 };
 
+const ORDINAL = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس",
+  "السابع", "الثامن", "التاسع", "العاشر", "الحادي عشر", "الثاني عشر"];
+
 export const floorName = (level: number) => {
-  if (level === -1) return "السرداب";
-  if (level === -2) return "سرداب 2";
+  if (level < 0) return level === -1 ? "السرداب" : `السرداب ${-level}`;
   if (level === 0) return "الأرضي";
-  return `الدور ${level}`;
+  return ORDINAL[level] ?? `الدور ${level}`;
 };

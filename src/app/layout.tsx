@@ -18,7 +18,7 @@ const display = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "إدارة العمارات | إدارة أملاك سلمان السلمان",
+  title: "إدارة العمارات | إدارة عقار سلمان السلمان",
   description: "نظام متكامل لإدارة العمارات والشقق والمستأجرين والعقود والإيجارات في الكويت.",
   applicationName: "إدارة العمارات",
   appleWebApp: { capable: true, title: "إدارة العمارات", statusBarStyle: "default" },

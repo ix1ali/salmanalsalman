@@ -16,12 +16,10 @@ export const NAV: NavItem[] = [
   { href: "/", label: "الرئيسية", icon: "home", perm: "dashboard.view" },
   { href: "/apartments", label: "الشقق", icon: "grid", perm: "units.view" },
   { href: "/tenants", label: "المستأجرون", icon: "users", perm: "tenants.view" },
-  { href: "/finances", label: "المالية", icon: "wallet", perm: "finance.view" },
-  { href: "/contracts", label: "العقود", icon: "file", perm: "contracts.view" },
-  { href: "/receipts", label: "الوصولات", icon: "receipt", perm: "receipts.view" },
-  { href: "/reports", label: "الكشوفات", icon: "chart", perm: "reports.view" },
+  { href: "/finances", label: "الإيجارات", icon: "wallet", perm: "finance.view" },
+  { href: "/print", label: "الطباعة", icon: "print", perm: "reports.view" },
+  { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
   { href: "/documents", label: "المستندات", icon: "folder", perm: "docs.view" },
-  { href: "/maintenance", label: "البلاغات", icon: "wrench", perm: "tickets.view" },
   { href: "/buildings", label: "العمارات", icon: "building", perm: "buildings.view" },
   { href: "/users", label: "المستخدمون", icon: "shield", perm: "users.manage" },
   { href: "/settings", label: "الإعدادات", icon: "cog", perm: "dashboard.view" },
@@ -165,7 +163,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMoreOpen(false), [path]);
 
-  const primary = nav.filter((n) => ["/", "/apartments", "/tenants", "/finances", "/maintenance"].includes(n.href)).slice(0, 4);
+  const primary = nav.filter((n) => ["/", "/apartments", "/tenants", "/finances", "/flags"].includes(n.href)).slice(0, 4);
   const rest = nav.filter((n) => !primary.some((p) => p.href === n.href));
 
   return (
@@ -207,9 +205,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <BuildingSwitcher />
           <div className="mr-auto flex items-center gap-2">
-            <Link href="/maintenance" className="btn btn-icon btn-ghost relative" aria-label="البلاغات">
+            <Link href="/flags" className="btn btn-icon btn-ghost relative" aria-label="التنبيهات">
               <Icon name="bell" size={18} />
-              {data.tickets.some((t) => t.status === "new") && (
+              {data.units.some((u) => u.flagged) && (
                 <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--danger)]" />
               )}
             </Link>

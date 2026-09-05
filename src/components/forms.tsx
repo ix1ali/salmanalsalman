@@ -9,8 +9,7 @@ import { Icon } from "./Icons";
 import { uid } from "@/lib/crypto";
 import { addMonths, expenseLabel, floorName, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
 import type {
-  Building, Contract, Expense, ExpenseCategory, PayMethod, Payment, Tenant, Ticket,
-  TicketPriority, TicketStatus, Unit, UnitKind, UnitStatus,
+  Building, Contract, Expense, ExpenseCategory, PayMethod, Tenant, Unit, UnitKind, UnitStatus,
 } from "@/lib/types";
 
 const nextSeq = (list: string[], prefix: string) => {
@@ -532,11 +531,11 @@ export function ContractForm({
             buildingId: unit.buildingId,
             ...f,
             tenantId,
-            status: new Date(f.startDate) > new Date() ? "upcoming" : "active",
+            status: "active",
             createdAt: new Date().toISOString(),
           });
           const u = d.units.find((x) => x.id === f.unitId);
-          if (u) u.status = new Date(f.startDate) > new Date() ? "reserved" : "occupied";
+          if (u) u.status = "occupied";
         }
       },
       { action: contract ? "تعديل عقد" : "عقد جديد", detail: `وحدة ${unit.number}`, actor: user?.username }
@@ -807,105 +806,6 @@ export function ExpenseForm({ open, onClose, expense }: { open: boolean; onClose
           </Select>
         </Field>
         <Field label="ملاحظات" className="sm:col-span-2"><TextArea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
-      </div>
-    </Sheet>
-  );
-}
-
-/* =============================== البلاغ ================================ */
-
-export function TicketForm({
-  open, onClose, ticket, presetUnitId,
-}: { open: boolean; onClose: () => void; ticket?: Ticket; presetUnitId?: string }) {
-  const { data, update, activeBuilding } = useStore();
-  const { user, allow } = useAuth();
-  const toast = useToast();
-
-  const units = data.units.filter((u) => activeBuilding === "all" || u.buildingId === activeBuilding);
-  const [f, setF] = useState({
-    unitId: ticket?.unitId ?? presetUnitId ?? units[0]?.id ?? "",
-    title: ticket?.title ?? "",
-    description: ticket?.description ?? "",
-    status: (ticket?.status ?? "new") as TicketStatus,
-    priority: (ticket?.priority ?? "normal") as TicketPriority,
-    assignee: ticket?.assignee ?? "",
-    cost: ticket?.cost ?? 0,
-  });
-
-  const save = () => {
-    if (!f.title.trim()) return toast("أدخل عنوان البلاغ", "error");
-    const unit = data.units.find((u) => u.id === f.unitId);
-    const contract = data.contracts.find((c) => c.unitId === f.unitId && c.status === "active");
-    update(
-      (d) => {
-        if (ticket) {
-          const t = d.tickets.find((x) => x.id === ticket.id);
-          if (t) {
-            Object.assign(t, f);
-            t.closedAt = f.status === "done" ? (t.closedAt ?? new Date().toISOString()) : undefined;
-          }
-        } else {
-          d.tickets.unshift({
-            id: uid("tk-"),
-            no: nextSeq(d.tickets.map((t) => t.no), "ص-"),
-            buildingId: unit?.buildingId ?? "",
-            tenantId: contract?.tenantId,
-            ...f,
-            createdBy: user?.username ?? "—",
-            createdAt: new Date().toISOString(),
-          });
-        }
-      },
-      { action: ticket ? "تحديث بلاغ" : "بلاغ جديد", detail: f.title, actor: user?.username }
-    );
-    toast("تم الحفظ");
-    onClose();
-  };
-
-  return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title={ticket ? `بلاغ ${ticket.no}` : "بلاغ صيانة جديد"}
-      footer={
-        <div className="flex gap-2">
-          <button className="btn btn-primary flex-1" onClick={save}><Icon name="check" size={16} /> حفظ</button>
-          <button className="btn btn-ghost" onClick={onClose}>إلغاء</button>
-        </div>
-      }
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="الوحدة" className="sm:col-span-2">
-          <Select value={f.unitId} onChange={(e) => setF({ ...f, unitId: e.target.value })}>
-            {units.map((u) => <option key={u.id} value={u.id}>{u.number} — {kindLabel[u.kind]}</option>)}
-          </Select>
-        </Field>
-        <Field label="عنوان البلاغ" required className="sm:col-span-2">
-          <TextInput value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="مثال: تسريب ماء في المطبخ" />
-        </Field>
-        <Field label="الوصف" className="sm:col-span-2">
-          <TextArea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
-        </Field>
-        <Field label="الأولوية">
-          <Select value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value as TicketPriority })}>
-            <option value="low">منخفضة</option>
-            <option value="normal">عادية</option>
-            <option value="high">عالية</option>
-            <option value="urgent">طارئة</option>
-          </Select>
-        </Field>
-        <Field label="الحالة">
-          <Select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value as TicketStatus })}>
-            <option value="new">جديد</option>
-            <option value="in_progress">جاري</option>
-            <option value="done">تم</option>
-            <option value="cancelled">ملغي</option>
-          </Select>
-        </Field>
-        <Field label="المسؤول"><TextInput value={f.assignee} onChange={(e) => setF({ ...f, assignee: e.target.value })} /></Field>
-        {allow("finance.edit") && (
-          <Field label="التكلفة (د.ك)"><TextInput type="number" step="0.001" value={f.cost} onChange={(e) => setF({ ...f, cost: +e.target.value })} /></Field>
-        )}
       </div>
     </Sheet>
   );
