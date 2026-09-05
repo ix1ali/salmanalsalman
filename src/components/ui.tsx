@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon, type IconName } from "./Icons";
 import { amount } from "@/lib/format";
 
@@ -238,8 +239,11 @@ export function Sheet({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
+  if (!open || typeof document === "undefined") return null;
+
+  // يُعرض عبر بوابة إلى body: الشريط العلوي يستخدم backdrop-blur وهو ينشئ
+  // حاوية جديدة للعناصر الثابتة، فكانت النوافذ تخرج خارج حدود الشاشة.
+  return createPortal(
     <div className="fixed inset-0 z-[150] flex items-end justify-center sm:items-center no-print" role="dialog" aria-modal="true" aria-labelledby={id}>
       <div className="absolute inset-0 bg-[#0b1b2b]/45 backdrop-blur-[2px]" onClick={onClose} />
       <div
@@ -254,7 +258,8 @@ export function Sheet({
         <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
         {footer && <div className="border-t border-[var(--line)] bg-[var(--surface-2)] px-4 py-3">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -266,7 +271,7 @@ export function useConfirm() {
   const confirm = (title: string, body: string, danger = true) =>
     new Promise<boolean>((resolve) => setState({ title, body, danger, resolve }));
 
-  const dialog = state ? (
+  const dialog = state && typeof document !== "undefined" ? createPortal(
     <div className="fixed inset-0 z-[180] grid place-items-center px-6 no-print">
       <div className="absolute inset-0 bg-[#0b1b2b]/50" onClick={() => { state.resolve(false); setState(null); }} />
       <div className="anim-pop relative w-full max-w-sm rounded-3xl bg-[var(--surface)] p-5 shadow-[var(--sh-3)]">
@@ -290,7 +295,8 @@ export function useConfirm() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   ) : null;
 
   return { confirm, dialog };

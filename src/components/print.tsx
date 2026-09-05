@@ -124,24 +124,44 @@ function useUnitCtx(unitId: string) {
 
 /* ================================ العقد ================================= */
 
+/** حقول العقد القابلة للتعبئة — من عقد مسجّل أو يدويًا. */
+export interface ContractFields {
+  tenantName: string;
+  civilId: string;
+  nationality: string;
+  job: string;
+  phone: string;
+  area: string;
+  block: string;
+  street: string;
+  buildingNo: string;
+  floor: string;
+  unitNo: string;
+  duration: string;
+  startDate: string;
+  endDate: string;
+  rent: number;
+  deposit: number;
+  dueDay: number;
+  occupants: number;
+  signedAt: string;
+}
+
 /**
- * عقد الإيجار بنصّه المعتمد في المكتب — منقول حرفيًا من نموذج rent1.docm
- * مع تعبئة بيانات العقد تلقائيًا.
+ * عقد الإيجار بنصّه المعتمد في المكتب — منقول حرفيًا من نموذج rent1.docm.
+ * البنود التسعة عشر ثابتة، وما عداها يُعبّأ من الحقول.
  */
-export function ContractDoc({ contract }: { contract: Contract }) {
+export function ContractSheet({ f }: { f: ContractFields }) {
   const { data } = useStore();
-  const tenant = data.tenants.find((t) => t.id === contract.tenantId);
-  const { unit, floor, building } = useUnitCtx(contract.unitId);
   const owner = data.settings.ownerFullName;
-  const signed = contract.signedAt || contract.startDate;
 
   return (
     <>
       <LetterHead title="عقد إيجار" en="Rent Contract" />
 
       <div className="mb-4 flex flex-wrap gap-x-8 gap-y-2 text-[13px]">
-        <Line k="في الكويت اليوم :" v={dayName(signed)} />
-        <Line k="الموافق :" v={dateShort(signed)} />
+        <Line k="في الكويت اليوم :" v={dayName(f.signedAt)} />
+        <Line k="الموافق :" v={dateShort(f.signedAt)} />
       </div>
 
       <p className="mb-3 text-[13px] font-bold" style={{ color: INK }}>تحرر وتم الاتفاق بين كل من الطرفين</p>
@@ -155,30 +175,27 @@ export function ContractDoc({ contract }: { contract: Contract }) {
       <div className="mb-4 rounded-lg border p-3" style={{ borderColor: LINE }}>
         <p className="mb-2 text-[13px] font-extrabold" style={{ color: NAVY }}>الطرف الثاني ( المستأجر )</p>
         <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
-          <Line k="الاسم :" v={tenant?.name} />
-          <Line k="الرقم المدني :" v={tenant?.civilId} />
-          <Line k="الجنسية :" v={tenant?.nationality} />
-          <Line k="المهنة :" v={tenant?.workplace} />
-          <Line k="رقم الهاتف :" v={tenant?.phone} />
+          <Line k="الاسم :" v={f.tenantName} />
+          <Line k="الرقم المدني :" v={f.civilId} />
+          <Line k="الجنسية :" v={f.nationality} />
+          <Line k="المهنة :" v={f.job} />
+          <Line k="رقم الهاتف :" v={f.phone} />
         </div>
       </div>
 
       <p className="mb-3 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
-        على أن يؤجر الطرف الأول للطرف الثاني ( العين ) الواقعة بمنطقة
-        ( <b>{building?.area ?? "حولي"}</b> ) قطعة رقم ( <b>{(building?.block ?? "").replace("قطعة", "").trim() || "10"}</b> )
-        شارع ( <b>{(building?.street ?? "").replace("شارع", "").trim() || "موسى بن نصير"}</b> )
-        عمارة رقم ( <b>{(building?.buildingNo ?? "").replace(/\D+/g, "") || "37"}</b> )
-        الدور ( <b>{floor?.name}</b> ) شقة رقم ( <b>{unit?.number}</b> )
-        كسكن خاص له ولعائلته وفق الشروط التالية:
+        على أن يؤجر الطرف الأول للطرف الثاني ( العين ) الواقعة بمنطقة ( <b>{f.area}</b> )
+        قطعة رقم ( <b>{f.block}</b> ) شارع ( <b>{f.street}</b> ) عمارة رقم ( <b>{f.buildingNo}</b> )
+        الدور ( <b>{f.floor}</b> ) شقة رقم ( <b>{f.unitNo}</b> ) كسكن خاص له ولعائلته وفق الشروط التالية:
       </p>
 
       <div className="mb-4 grid gap-x-8 gap-y-2 rounded-lg border p-3 sm:grid-cols-2" style={{ borderColor: LINE }}>
-        <Line k="مدة هذا العقد :" v={contract.durationText || "سنة"} />
-        <Line k="القيمة الإيجارية الشهرية :" v={KWD(contract.rent)} />
-        <Line k="يبدأ بتاريخ :" v={dateShort(contract.startDate)} />
-        <Line k="وينتهي بتاريخ :" v={dateShort(contract.endDate)} />
-        <Line k="عدد الساكنين :" v={contract.occupants ? num(contract.occupants) : ""} />
-        <Line k="التأمين :" v={contract.deposit ? KWD(contract.deposit) : ""} />
+        <Line k="مدة هذا العقد :" v={f.duration} />
+        <Line k="القيمة الإيجارية الشهرية :" v={KWD(f.rent)} />
+        <Line k="يبدأ بتاريخ :" v={dateShort(f.startDate)} />
+        <Line k="وينتهي بتاريخ :" v={dateShort(f.endDate)} />
+        <Line k="عدد الساكنين :" v={f.occupants ? num(f.occupants) : ""} />
+        <Line k="التأمين :" v={f.deposit ? KWD(f.deposit) : ""} />
       </div>
 
       <ol className="list-inside list-decimal space-y-2 text-[12.5px] leading-relaxed" style={{ color: "#2a4361" }}>
@@ -188,14 +205,14 @@ export function ContractDoc({ contract }: { contract: Contract }) {
           بمعاينة العين.
         </li>
         <li>
-          القيمة الإيجارية الشهرية <b>{KWD(contract.rent)}</b> تعتبر دينًا مترصدًا في ذمة الطرف الثاني محدد القيمة وواجب الوفاء.
+          القيمة الإيجارية الشهرية <b>{KWD(f.rent)}</b> تعتبر دينًا مترصدًا في ذمة الطرف الثاني محدد القيمة وواجب الوفاء.
         </li>
         <li>
-          يتعهد ويلتزم الطرف الثاني ( المستأجر ) بسداد الأجرة الشهرية قبل يوم {num(contract.dueDay || data.settings.dueDay)} من كل شهر ميلادي.
+          يتعهد ويلتزم الطرف الثاني ( المستأجر ) بسداد الأجرة الشهرية قبل يوم {num(f.dueDay)} من كل شهر ميلادي.
         </li>
         <li>
           يتعهد ويلتزم المستأجر بأن عدد الساكنين في العين محل هذا العقد لا يزيدون عن عدد
-          ( {contract.occupants ? num(contract.occupants) : "    "} ) شخص / أشخاص.
+          ( {f.occupants ? num(f.occupants) : "    "} ) شخص / أشخاص.
         </li>
         <li>
           في حالة رغبة المستأجر بالإخلاء وإنهاء العقد عليه إعلام المؤجر خطيًا قبل الإخلاء بمدة لا تقل عن شهر، ويجب تسليم
@@ -275,73 +292,191 @@ export function ContractDoc({ contract }: { contract: Contract }) {
         حُرر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها
       </p>
 
-      <Signatures a={`الطرف الأول ( المؤجر ) — السيد / ${owner}`} b="الطرف الثاني ( المستأجر )" />
+      <Signatures a={`الطرف الأول ( المؤجر ) — السيد / ${owner}`} b="الطرف الثاني ( المستأجر )" />
     </>
+  );
+}
+
+/** العقد معبَّأ من عقد مسجّل في النظام. */
+export function ContractDoc({ contract }: { contract: Contract }) {
+  const { data } = useStore();
+  const tenant = data.tenants.find((t) => t.id === contract.tenantId);
+  const { unit, floor, building } = useUnitCtx(contract.unitId);
+
+  return (
+    <ContractSheet
+      f={{
+        tenantName: tenant?.name ?? "",
+        civilId: tenant?.civilId ?? "",
+        nationality: tenant?.nationality ?? "",
+        job: tenant?.workplace ?? "",
+        phone: tenant?.phone ?? "",
+        area: building?.area ?? "حولي الجنوبي",
+        block: (building?.block ?? "قطعة 10").replace("قطعة", "").trim(),
+        street: (building?.street ?? "شارع موسى بن نصير").replace("شارع", "").trim(),
+        buildingNo: (building?.buildingNo ?? "").replace(/\D+/g, "") || "37",
+        floor: floor?.name ?? "",
+        unitNo: unit?.number ?? "",
+        duration: contract.durationText || "سنة",
+        startDate: contract.startDate,
+        endDate: contract.endDate,
+        rent: contract.rent,
+        deposit: contract.deposit,
+        dueDay: contract.dueDay || data.settings.dueDay,
+        occupants: contract.occupants ?? 0,
+        signedAt: contract.signedAt || contract.startDate,
+      }}
+    />
   );
 }
 
 /* ================================ الوصل ================================= */
 
-/** وصل استلام الإيجار بنفس حقول النموذج الورقي للمكتب. */
-export function ReceiptDoc({ payment }: { payment: Payment }) {
+/** أسماء البنوك كما هي في نموذج المكتب. */
+export const BANKS = [
+  "الكويت الوطني", "الخليج", "التجاري", "الأهلي",
+  "بيت التمويل الكويتي", "بوبيان", "وربة", "الدولي",
+];
+
+/** بيانات وصل قابلة للتعبئة يدويًا أو من دفعة مسجّلة. */
+export interface ReceiptFields {
+  no: string;
+  from: string;          // وصلنا من السيد / السادة
+  amount: number;
+  method: string;        // نقدًا أو رقم الشيك
+  bank: string;
+  unitNo: string;
+  floor: string;
+  monthText: string;
+  date: string;
+  notes?: string;
+}
+
+/**
+ * وصل الإيجار بنفس صياغة نموذج المكتب حرفيًا
+ * (تقرير «طباعة وصل ايجار» في قاعدة Access).
+ */
+export function ReceiptSheet({ f }: { f: ReceiptFields }) {
   const { data } = useStore();
-  const tenant = data.tenants.find((t) => t.id === payment.tenantId);
-  const { unit, floor, building } = useUnitCtx(payment.unitId);
-  const { dinars, fils } = dinarsFils(payment.amount);
+  const { dinars, fils } = dinarsFils(f.amount);
 
   return (
     <>
-      <LetterHead
-        title="وصل استلام"
-        en="Payment Receipt"
-        meta={
-          <>
-            <p className="mt-1 text-[13px] font-extrabold" style={{ color: INK }}>رقم {payment.receiptNo}</p>
-            <p className="text-[11.5px]" style={{ color: MUTED }}>{dateShort(payment.paidAt)} — {dayName(payment.paidAt)}</p>
-          </>
-        }
-      />
-
-      <p className="mb-3 text-[13px]" style={{ color: INK }}>
-        استلمنا من السيد / <b>{tenant?.name}</b>
-      </p>
-
-      <div className="mb-4 rounded-xl border-2 p-4" style={{ borderColor: NAVY, background: "#edf3fb" }}>
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-[14px]">
-          <Line k="مبلغ وقدره :" v={<b>{amount(payment.amount)}</b>} />
-          <Line k="دينار :" v={num(dinars)} />
-          <Line k="فلس :" v={String(fils).padStart(3, "0")} />
+      <div className="mb-6 text-center">
+        <div className="mb-2 flex items-center justify-center gap-3">
+          <Logo size={44} />
+          <div className="text-right">
+            <p className="text-[19px] font-extrabold" style={{ color: INK }}>عقار المالك / سلمان السلمان</p>
+            <p className="text-[11.5px]" style={{ color: MUTED }}>Real Estate / Salman AlSalman</p>
+          </div>
         </div>
-        <p className="mt-2 text-[12.5px] font-bold" style={{ color: NAVY }}>
+        <div className="mx-auto mt-3 inline-block rounded-lg px-8 py-1.5" style={{ background: NAVY }}>
+          <p className="text-[19px] font-extrabold text-white">وصل ايجار</p>
+        </div>
+      </div>
+
+      <div className="mb-5 flex justify-between text-[13px]">
+        <Line k="رقم الوصل :" v={f.no} />
+        <Line k="التاريخ :" v={dateShort(f.date)} />
+        <Line k="اليوم :" v={dayName(f.date)} />
+      </div>
+
+      <div className="space-y-4 text-[14px]">
+        <div className="flex items-baseline gap-2">
+          <span className="shrink-0 font-bold" style={{ color: INK }}>وصلنا من السيد / السادة</span>
+          <span className="flex-1 border-b border-dotted px-2 pb-1 font-extrabold" style={{ borderColor: INK, color: NAVY }}>
+            {f.from || " "}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="shrink-0 font-bold" style={{ color: INK }}>مبلغ وقدره</span>
+          <span className="min-w-[120px] flex-1 border-b border-dotted px-2 pb-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
+            {amount(f.amount)}
+          </span>
+          <span className="shrink-0 font-bold" style={{ color: INK }}>دينار كويتي فقط لاغير</span>
+        </div>
+
+        <p className="rounded-lg px-3 py-2 text-[12.5px] font-bold" style={{ background: "#edf3fb", color: NAVY }}>
           فقط {amountInWords(dinars)} دينارًا كويتيًا{fils ? ` و${num(fils)} فلسًا` : ""} لا غير.
         </p>
+
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
+          <span className="flex flex-1 items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>نقدا / شيك رقم</span>
+            <span className="min-w-[80px] flex-1 border-b border-dotted px-2 pb-1 font-bold" style={{ borderColor: INK, color: NAVY }}>
+              {f.method || " "}
+            </span>
+          </span>
+          <span className="flex flex-1 items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>على بنك</span>
+            <span className="min-w-[80px] flex-1 border-b border-dotted px-2 pb-1 font-bold" style={{ borderColor: INK, color: NAVY }}>
+              {f.bank || " "}
+            </span>
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
+          <span className="flex items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>وذلك عن ايجار شقة رقم</span>
+            <span className="min-w-[70px] border-b border-dotted px-2 pb-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
+              {f.unitNo || " "}
+            </span>
+          </span>
+          <span className="flex items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>الدور</span>
+            <span className="min-w-[80px] border-b border-dotted px-2 pb-1 text-center font-bold" style={{ borderColor: INK, color: NAVY }}>
+              {f.floor || " "}
+            </span>
+          </span>
+          <span className="flex flex-1 items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>عن شهر</span>
+            <span className="min-w-[90px] flex-1 border-b border-dotted px-2 pb-1 text-center font-bold" style={{ borderColor: INK, color: NAVY }}>
+              {f.monthText || " "}
+            </span>
+          </span>
+        </div>
+
+        {f.notes && (
+          <div className="flex items-baseline gap-2">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>ملاحظات</span>
+            <span className="flex-1 border-b border-dotted px-2 pb-1" style={{ borderColor: LINE, color: "#2a4361" }}>{f.notes}</span>
+          </div>
+        )}
       </div>
 
-      <div className="mb-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
-        <Line k="نقدًا / شيك رقم :" v={payment.method === "cheque" ? (payment.reference || "") : methodLabel[payment.method]} />
-        <Line k="على بنك :" v={payment.bank || ""} />
-        <Line k="وذلك عن إيجار شقة رقم :" v={unit?.number} />
-        <Line k="الدور :" v={floor?.name} />
-        <Line k="عن شهر :" v={monthAr(payment.period)} />
-        <Line k="العقار :" v={`${building?.name ?? ""} — ${building?.area ?? ""}`} />
+      <div className="mt-14 text-left">
+        <p className="text-[13px] font-bold" style={{ color: INK }}>توقيع المستلم</p>
+        <div className="mr-auto mt-10 w-56 border-b" style={{ borderColor: INK }} />
       </div>
 
-      {payment.notes && (
-        <p className="mb-4 rounded-lg p-3 text-[12.5px]" style={{ background: "#f9fbfd", color: "#2a4361" }}>
-          <b>ملاحظات: </b>{payment.notes}
-        </p>
-      )}
-
-      <p className="text-[12.5px] leading-relaxed" style={{ color: "#2a4361" }}>
-        وهذا الوصل بمثابة إبراء عن الشهر المذكور أعلاه فقط، ولا يُعتد به في غير ما حُرر من أجله.
-      </p>
-
-      <Signatures a="المستلم ( إدارة العقار )" b="المستأجر" />
-
-      <p className="mt-6 text-center text-[10.5px]" style={{ color: "#9fb0c4" }}>
-        وصل رقم {payment.receiptNo} — صادر آليًا من نظام {data.settings.orgName}
+      <p className="mt-8 text-center text-[10.5px]" style={{ color: "#9fb0c4" }}>
+        {data.settings.orgName}
       </p>
     </>
+  );
+}
+
+/** الوصل معبَّأ من دفعة مسجّلة في النظام. */
+export function ReceiptDoc({ payment }: { payment: Payment }) {
+  const { data } = useStore();
+  const tenant = data.tenants.find((t) => t.id === payment.tenantId);
+  const { unit, floor } = useUnitCtx(payment.unitId);
+  return (
+    <ReceiptSheet
+      f={{
+        no: payment.receiptNo,
+        from: tenant?.name ?? "",
+        amount: payment.amount,
+        method: payment.method === "cheque" ? (payment.reference || "شيك") : methodLabel[payment.method],
+        bank: payment.bank ?? "",
+        unitNo: unit?.number ?? "",
+        floor: floor?.name ?? "",
+        monthText: monthAr(payment.period),
+        date: payment.paidAt,
+        notes: payment.notes,
+      }}
+    />
   );
 }
 

@@ -91,10 +91,17 @@ export const methodLabel: Record<PayMethod, string> = {
 };
 
 export const expenseLabel: Record<ExpenseCategory, string> = {
-  electricity: "كهرباء", water: "ماء", guard: "حارس", cleaning: "تنظيف",
-  elevator: "مصعد", maintenance: "صيانة", government: "رسوم حكومية",
-  internet: "إنترنت", insurance: "تأمين", other: "أخرى",
+  electricity: "الكهرباء والماء", water: "الماء", salaries: "الرواتب",
+  bank: "رسوم بنكية", cleaning: "التنظيف", elevator: "المصعد",
+  maintenance: "الصيانة", government: "رسوم حكومية", internet: "الإنترنت",
+  insurance: "التأمين", guard: "الحارس", other: "أخرى",
 };
+
+/** ترتيب عرض بنود المصروفات في القوائم والتقارير. */
+export const EXPENSE_ORDER: ExpenseCategory[] = [
+  "electricity", "salaries", "bank", "cleaning", "elevator",
+  "maintenance", "government", "water", "internet", "insurance", "guard", "other",
+];
 
 export const docLabel: Record<DocKind, string> = {
   civil_id: "بطاقة مدنية", passport: "جواز سفر", contract: "عقد", receipt: "وصل",

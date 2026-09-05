@@ -5,9 +5,10 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
 import { Field, Select, Sheet, TextArea, TextInput } from "./ui";
+import { BANKS } from "./print";
 import { Icon } from "./Icons";
 import { uid } from "@/lib/crypto";
-import { addMonths, expenseLabel, floorName, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
+import { EXPENSE_ORDER, addMonths, expenseLabel, floorName, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
 import type {
   Building, Contract, Expense, ExpenseCategory, PayMethod, Tenant, Unit, UnitKind, UnitStatus,
 } from "@/lib/types";
@@ -747,7 +748,10 @@ export function PaymentForm({
           <TextInput value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} dir="ltr" />
         </Field>
         <Field label="على بنك" hint="يُطبع في الوصل عند الدفع بشيك">
-          <TextInput value={f.bank} onChange={(e) => setF({ ...f, bank: e.target.value })} />
+          <Select value={f.bank} onChange={(e) => setF({ ...f, bank: e.target.value })}>
+            <option value="">—</option>
+            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </Select>
         </Field>
         <Field label="ملاحظات" className="sm:col-span-2"><TextArea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
       </div>
@@ -810,7 +814,7 @@ export function ExpenseForm({ open, onClose, expense }: { open: boolean; onClose
         </Field>
         <Field label="التصنيف" required>
           <Select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value as ExpenseCategory })}>
-            {(Object.keys(expenseLabel) as ExpenseCategory[]).map((c) => <option key={c} value={c}>{expenseLabel[c]}</option>)}
+            {EXPENSE_ORDER.map((c) => <option key={c} value={c}>{expenseLabel[c]}</option>)}
           </Select>
         </Field>
         <Field label="البيان" required className="sm:col-span-2">

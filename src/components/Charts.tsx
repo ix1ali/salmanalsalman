@@ -61,6 +61,33 @@ export function BarChart({
   );
 }
 
+/* ============================ حلقة النسبة ============================ */
+
+/** حلقة إشغال متحركة — الرقم في المنتصف. */
+export function Gauge({
+  value, size = 132, stroke = 12, track = "rgba(255,255,255,.18)", color = "var(--gold)", label,
+}: { value: number; size?: number; stroke?: number; track?: string; color?: string; label?: string }) {
+  const r = (100 - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pctv = Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        <circle
+          cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={`${(pctv / 100) * c} ${c}`}
+          style={{ transition: "stroke-dasharray 1.1s cubic-bezier(.22,1,.36,1)" }}
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-content-center text-center">
+        <p className="display text-[26px] leading-none tabular-nums">{Math.round(pctv)}<span className="text-[15px]">%</span></p>
+        {label && <p className="mt-1 text-[10.5px] opacity-70">{label}</p>}
+      </div>
+    </div>
+  );
+}
+
 /* ================================ دونات ================================= */
 
 export interface Slice { label: string; value: number; color: string }

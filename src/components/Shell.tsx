@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import { roleLabel } from "@/lib/format";
 import type { Perm } from "@/lib/permissions";
 import { Sheet } from "./ui";
+import GlobalSearch from "./GlobalSearch";
 
 export interface NavItem { href: string; label: string; icon: IconName; perm: Perm }
 
@@ -16,7 +17,7 @@ export const NAV: NavItem[] = [
   { href: "/", label: "الرئيسية", icon: "home", perm: "dashboard.view" },
   { href: "/apartments", label: "الشقق", icon: "grid", perm: "units.view" },
   { href: "/tenants", label: "المستأجرون", icon: "users", perm: "tenants.view" },
-  { href: "/finances", label: "الإيجارات", icon: "wallet", perm: "finance.view" },
+  { href: "/finances", label: "المالية", icon: "wallet", perm: "finance.view" },
   { href: "/print", label: "الطباعة", icon: "print", perm: "reports.view" },
   { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
   { href: "/documents", label: "المستندات", icon: "folder", perm: "docs.view" },
@@ -202,7 +203,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <Logo size={32} />
           </div>
           <BuildingSwitcher />
-          <div className="mr-auto flex items-center gap-2">
+          <div className="mr-auto flex items-center gap-1.5">
+            <GlobalSearch />
             <Link href="/flags" className="btn btn-icon btn-ghost relative" aria-label="التنبيهات">
               <Icon name="bell" size={18} />
               {data.units.some((u) => u.flagged) && (

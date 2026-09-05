@@ -8,8 +8,8 @@ export type UnitKind = "apartment" | "shop" | "storage" | "office" | "parking";
 export type PayMethod = "cash" | "knet" | "transfer" | "cheque" | "link";
 
 export type ExpenseCategory =
-  | "electricity" | "water" | "guard" | "cleaning" | "elevator"
-  | "maintenance" | "government" | "internet" | "insurance" | "other";
+  | "electricity" | "water" | "salaries" | "bank" | "cleaning" | "elevator"
+  | "maintenance" | "government" | "internet" | "insurance" | "guard" | "other";
 
 export type DocKind =
   | "civil_id" | "passport" | "contract" | "receipt" | "statement"
