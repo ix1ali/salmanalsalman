@@ -1,19 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Tajawal, Cairo } from "next/font/google";
+import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
-const body = Tajawal({
+// عائلة واحدة بأوزان متعددة — أوضح وأكثر تماسكًا من خلط خطين
+const body = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "700", "800"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-body",
-  display: "swap",
-});
-
-const display = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-display",
   display: "swap",
 });
 
@@ -28,12 +22,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#123a6b",
+  themeColor: "#17324e",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${body.variable} ${display.variable}`}>
+    <html lang="ar" dir="rtl" className={body.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>

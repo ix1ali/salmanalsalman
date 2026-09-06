@@ -172,6 +172,16 @@ export interface DocMeta {
   uploadedAt: string;
 }
 
+/** مراسلة داخلية — إعلان أو ملاحظة عامة بين مستخدمي النظام. */
+export interface Memo {
+  id: string;
+  title: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface AuditEntry {
   id: string;
   at: string;
@@ -191,6 +201,7 @@ export interface AppData {
   payments: Payment[];
   expenses: Expense[];
   docs: DocMeta[];
+  memos: Memo[];
   audit: AuditEntry[];
   settings: {
     orgName: string;

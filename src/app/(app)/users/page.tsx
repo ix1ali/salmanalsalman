@@ -71,7 +71,7 @@ export default function UsersPage() {
                 <Icon name={u.role === "admin" ? "shield" : u.role === "viewer" ? "eye" : "key"} size={19} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-extrabold">
+                <p className="truncate text-[13.5px] font-semibold">
                   {u.displayName}
                   {u.id === user?.id && <span className="mr-1.5 text-[11px] font-bold text-[var(--primary-700)]">(أنت)</span>}
                 </p>
@@ -100,17 +100,17 @@ export default function UsersPage() {
       </div>
 
       {/* مصفوفة الصلاحيات */}
-      <div className="card card-lg p-4">
+      <div className="card p-3.5">
         <h2 className="mb-3 text-[15px]">ماذا يستطيع كل دور؟</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           {(["admin", "viewer", "guard"] as Role[]).map((r) => (
-            <div key={r} className="rounded-2xl border border-[var(--line)] p-3">
+            <div key={r} className="rounded-lg border border-[var(--line)] p-3">
               <div className="mb-2 flex items-center gap-2">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--primary-050)] text-[var(--primary-700)]">
                   <Icon name={r === "admin" ? "shield" : r === "viewer" ? "eye" : "key"} size={16} />
                 </span>
                 <div>
-                  <p className="text-[13px] font-extrabold">{roleLabel[r]}</p>
+                  <p className="text-[13px] font-bold">{roleLabel[r]}</p>
                   <p className="text-[10.5px] text-[var(--muted)]">{PERMS[r].length} صلاحية</p>
                 </div>
               </div>

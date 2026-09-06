@@ -33,13 +33,13 @@ export function ManualReceipt() {
   const set = (k: string, v: string | number) => setF((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="card card-lg p-4">
+    <div className="card p-3.5">
       <div className="mb-3 flex items-center gap-2.5">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--ok-050)] text-[var(--ok)]">
           <Icon name="receipt" size={19} />
         </span>
         <div>
-          <p className="text-[14px] font-extrabold">وصل يدوي</p>
+          <p className="t-section">وصل يدوي</p>
           <p className="text-[11.5px] text-[var(--muted)]">اكتب البيانات بنفسك — لأي مبلغ أو شخص</p>
         </div>
       </div>
@@ -152,13 +152,13 @@ export function ManualContract() {
   const set = (k: string, v: string | number) => setF((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="card card-lg p-4">
+    <div className="card p-3.5">
       <div className="mb-3 flex items-center gap-2.5">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--primary-050)] text-[var(--primary)]">
           <Icon name="file" size={19} />
         </span>
         <div>
-          <p className="text-[14px] font-extrabold">عقد يدوي</p>
+          <p className="t-section">عقد يدوي</p>
           <p className="text-[11.5px] text-[var(--muted)]">نفس نص العقد المعتمد ببيانات تكتبها بنفسك</p>
         </div>
       </div>

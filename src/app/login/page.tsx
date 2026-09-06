@@ -86,7 +86,7 @@ export default function LoginPage() {
           <p className="mt-1 text-[13px] text-[var(--muted)]">نظام إدارة العمارات والإيجارات</p>
         </div>
 
-        <div className="card card-lg anim-up p-5">
+        <div className="card anim-up p-5">
           <h2 className="text-lg">تسجيل الدخول</h2>
           <p className="mt-0.5 text-[12.5px] text-[var(--muted)]">أدخل اسم المستخدم وكلمة المرور الخاصة بك</p>
 
@@ -175,7 +175,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-5 border-t border-[var(--line)] pt-4">
-            <p className="mb-2 flex items-center gap-1.5 text-[11.5px] font-extrabold text-[var(--muted)]">
+            <p className="mb-2 flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--muted)]">
               <Icon name="sparkle" size={13} /> حسابات تجريبية — اضغط للدخول مباشرة
             </p>
             <div className="grid gap-1.5">
@@ -191,7 +191,7 @@ export default function LoginPage() {
                     <Icon name={d.role === "admin" ? "shield" : d.role === "viewer" ? "eye" : "key"} size={16} />
                   </span>
                   <span className="flex-1">
-                    <span className="block text-[12.5px] font-extrabold">{roleLabel[d.role]}</span>
+                    <span className="block text-[12.5px] font-bold">{roleLabel[d.role]}</span>
                     <span className="block text-[11px] text-[var(--muted)]">{roleDesc[d.role]}</span>
                   </span>
                   <span dir="ltr" className="font-mono text-[10.5px] text-[var(--muted)]">{d.u}</span>

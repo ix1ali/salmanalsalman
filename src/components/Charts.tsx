@@ -81,7 +81,7 @@ export function Gauge({
         />
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
-        <p className="display text-[26px] leading-none tabular-nums">{Math.round(pctv)}<span className="text-[15px]">%</span></p>
+        <p className="num font-bold text-[26px] leading-none tabular-nums">{Math.round(pctv)}<span className="text-[15px]">%</span></p>
         {label && <p className="mt-1 text-[10.5px] opacity-70">{label}</p>}
       </div>
     </div>
@@ -119,7 +119,7 @@ export function Donut({ slices, center, sub, size = 168 }: { slices: Slice[]; ce
           })}
         </svg>
         <div className="absolute inset-0 grid place-content-center text-center">
-          <p className="display text-[15px] leading-tight tabular-nums">{center}</p>
+          <p className="num font-bold text-[15px] leading-tight tabular-nums">{center}</p>
           {sub && <p className="text-[10.5px] text-[var(--muted)]">{sub}</p>}
         </div>
       </div>
@@ -128,7 +128,7 @@ export function Donut({ slices, center, sub, size = 168 }: { slices: Slice[]; ce
           <li key={s.label} className="flex items-center gap-2 text-[12px]">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
             <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-2)]">{s.label}</span>
-            <span className="shrink-0 font-extrabold tabular-nums">{Math.round((s.value / total) * 100)}%</span>
+            <span className="shrink-0 font-bold tabular-nums">{Math.round((s.value / total) * 100)}%</span>
           </li>
         ))}
       </ul>
@@ -168,7 +168,7 @@ export function HBars({ items }: { items: { label: string; value: number; color?
         <li key={i.label}>
           <div className="mb-1 flex items-center justify-between text-[12px]">
             <span className="font-semibold text-[var(--ink-2)]">{i.label}</span>
-            <span className="font-extrabold tabular-nums">{KWD(i.value)}</span>
+            <span className="font-bold tabular-nums">{KWD(i.value)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--line)]">
             <div

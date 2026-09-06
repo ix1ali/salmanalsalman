@@ -95,7 +95,7 @@ export default function DocsPanel({
       {dialog}
       {!compact && (
         <div className="mb-2.5 flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-[14px] font-extrabold">
+          <h3 className="flex items-center gap-1.5 t-section">
             <Icon name="folder" size={16} className="text-[var(--muted)]" /> {title}
             <span className="rounded-full bg-[var(--bg-soft)] px-1.5 text-[11px] text-[var(--muted)]">{docs.length}</span>
           </h3>
@@ -103,7 +103,7 @@ export default function DocsPanel({
       )}
 
       {allow("docs.upload") && (
-        <div className="mb-3 rounded-2xl border border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] p-3">
+        <div className="mb-3 rounded-lg border border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] p-3">
           <div className="grid gap-2 sm:grid-cols-3">
             <Field label="نوع المستند">
               <Select value={kind} onChange={(e) => setKind(e.target.value as DocKind)}>
@@ -188,7 +188,7 @@ export default function DocsPanel({
 
       {preview && (
         <div className="fixed inset-0 z-[190] grid place-items-center bg-[#0b1b2b]/80 p-4" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}>
-          <div className="anim-pop relative max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white" onClick={(e) => e.stopPropagation()}>
+          <div className="anim-pop relative max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
               <p className="truncate text-[13px] font-bold">{preview.name}</p>
               <button className="btn btn-icon btn-ghost !p-1.5" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}>

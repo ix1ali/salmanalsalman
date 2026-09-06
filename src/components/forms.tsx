@@ -358,8 +358,8 @@ export function BuildingForm({
       </div>
 
       {!building && (
-        <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-3">
-          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold">
+        <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold">
             <Icon name="layers" size={15} /> إنشاء الأدوار تلقائيًا
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -585,7 +585,7 @@ export function ContractForm({
             <button className={`btn btn-sm ${newTenant ? "btn-soft" : "btn-ghost"}`} onClick={() => setNewTenant(true)}>مستأجر جديد</button>
           </div>
           {newTenant ? (
-            <div className="grid gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-3 sm:grid-cols-2">
+            <div className="grid gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] p-3 sm:grid-cols-2">
               <Field label="الاسم" required><TextInput value={nt.name} onChange={(e) => setNt({ ...nt, name: e.target.value })} /></Field>
               <Field label="رقم الهاتف" required><TextInput value={nt.phone} onChange={(e) => setNt({ ...nt, phone: e.target.value.replace(/\D/g, "") })} dir="ltr" inputMode="tel" /></Field>
               <Field label="الرقم المدني"><TextInput value={nt.civilId} onChange={(e) => setNt({ ...nt, civilId: e.target.value.replace(/\D/g, "").slice(0, 12) })} dir="ltr" inputMode="numeric" /></Field>

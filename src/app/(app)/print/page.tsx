@@ -115,13 +115,13 @@ export default function PrintPage() {
                 <li key={c.id}>
                   <button
                     onClick={() => setDoc({ kind: "contract", contract: c })}
-                    className="card flex w-full items-center gap-3 p-3 text-right transition hover:shadow-[var(--sh-2)] active:scale-[.99]"
+                    className="card flex w-full items-center gap-3 p-3 text-right transition hover:shadow-none active:scale-[.99]"
                   >
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--primary-050)] text-[13px] font-extrabold text-[var(--primary)]">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--primary-050)] text-[13px] font-bold text-[var(--primary)]">
                       {unitById.get(c.unitId)?.number}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-extrabold">
+                      <span className="block truncate text-[13.5px] font-semibold">
                         {tenantById.get(c.tenantId)?.name ?? "—"}
                       </span>
                       <span className="block truncate text-[11.5px] text-[var(--muted)]">
@@ -157,13 +157,13 @@ export default function PrintPage() {
                 <li key={p.id}>
                   <button
                     onClick={() => setDoc({ kind: "receipt", payment: p })}
-                    className="card flex w-full items-center gap-3 p-3 text-right transition hover:shadow-[var(--sh-2)] active:scale-[.99]"
+                    className="card flex w-full items-center gap-3 p-3 text-right transition hover:shadow-none active:scale-[.99]"
                   >
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--ok-050)] text-[var(--ok)]">
                       <Icon name="receipt" size={19} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-extrabold">
+                      <span className="block truncate text-[13.5px] font-semibold">
                         {tenantById.get(p.tenantId)?.name ?? "—"}
                       </span>
                       <span className="block truncate text-[11.5px] text-[var(--muted)]">
@@ -186,8 +186,8 @@ export default function PrintPage() {
       {/* =========================== الكشوفات =========================== */}
       {tab === "statements" && (
         <div className="space-y-3">
-          <div className="card card-lg p-4">
-            <p className="mb-1 text-[14px] font-extrabold">الكشف المالي الشهري</p>
+          <div className="card p-3.5">
+            <p className="mb-1 t-section">الكشف المالي الشهري</p>
             <p className="mb-3 text-[12px] text-[var(--muted)]">المقبوضات والمصروفات وصافي الدخل في شهر واحد.</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {data.buildings.length > 1 && (
@@ -204,8 +204,8 @@ export default function PrintPage() {
             </button>
           </div>
 
-          <div className="card card-lg p-4">
-            <p className="mb-1 text-[14px] font-extrabold">كشف حساب مستأجر</p>
+          <div className="card p-3.5">
+            <p className="mb-1 t-section">كشف حساب مستأجر</p>
             <p className="mb-3 text-[12px] text-[var(--muted)]">كل ما سدّده المستأجر وما تبقى عليه.</p>
             <Select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
               <option value="">— اختر المستأجر —</option>
@@ -220,8 +220,8 @@ export default function PrintPage() {
             </button>
           </div>
 
-          <div className="card card-lg p-4">
-            <p className="mb-1 text-[14px] font-extrabold">سجل المستأجرين</p>
+          <div className="card p-3.5">
+            <p className="mb-1 t-section">سجل المستأجرين</p>
             <p className="mb-3 text-[12px] text-[var(--muted)]">
               جدول شامل بجميع الوحدات المؤجرة وبيانات مستأجريها ومدد عقودهم.
             </p>
@@ -240,8 +240,8 @@ export default function PrintPage() {
       {/* ========================== طلب الإخلاء ========================== */}
       {tab === "eviction" && (
         <div className="space-y-3">
-          <div className="card card-lg p-4">
-            <p className="mb-1 text-[14px] font-extrabold">إقرار إخلاء وتسليم العين المؤجرة</p>
+          <div className="card p-3.5">
+            <p className="mb-1 t-section">إقرار إخلاء وتسليم العين المؤجرة</p>
             <p className="mb-3 text-[12px] text-[var(--muted)]">
               يُطبع ليوقّعه المستأجر عند تسليم الوحدة، ويشمل تعهده بتسليم براءة الذمة من وزارة الكهرباء والماء.
             </p>

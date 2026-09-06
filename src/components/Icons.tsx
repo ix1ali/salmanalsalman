@@ -57,6 +57,7 @@ const P: Record<string, string> = {
   refresh: "M3 12a9 9 0 0 1 15.5-6.2M21 12a9 9 0 0 1-15.5 6.2M18.5 3v3h-3M5.5 21v-3h3",
   box: "m12 3 9 4.5v9L12 21l-9-4.5v-9zM3 7.5 12 12l9-4.5M12 12v9",
   store: "M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3.5 9 5 4h14l1.5 5a2.5 2.5 0 0 1-4.25 1.8A2.5 2.5 0 0 1 12 10a2.5 2.5 0 0 1-4.25.8A2.5 2.5 0 0 1 3.5 9ZM10 20v-5h4v5",
+  message: "M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM7.5 9h9M7.5 12.5h6",
   info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 11v5M12 7.5h.01",
   cube: "M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10",
 };
@@ -85,9 +86,9 @@ export function Icon({
 export function Logo({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="44" height="44" rx="13" fill="#123a6b" />
-      <path d="M14 35V18.5L24 12l10 6.5V35" stroke="#c9992e" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
-      <path d="M10.5 35h27" stroke="#c9992e" strokeWidth="2.6" strokeLinecap="round" />
+      <rect x="2" y="2" width="44" height="44" rx="12" fill="#17324e" />
+      <path d="M14 35V18.5L24 12l10 6.5V35" stroke="#b08d57" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M10.5 35h27" stroke="#b08d57" strokeWidth="2.6" strokeLinecap="round" />
       <rect x="19" y="21" width="4" height="4" rx="1" fill="#fff" />
       <rect x="25" y="21" width="4" height="4" rx="1" fill="#fff" />
       <rect x="19" y="28" width="4" height="4" rx="1" fill="#fff" opacity=".55" />

@@ -172,9 +172,17 @@ export async function buildSeed(): Promise<AppData> {
   const payments: Payment[] = [];
 
   return {
-    version: 3,
+    version: 4,
     users, buildings, floors, units, tenants, contracts, payments, expenses,
     docs: [],
+    memos: [{
+      id: "m-1",
+      title: "بدء العمل بالنظام الجديد",
+      body: "تم استيراد سجل المستأجرين من برنامج المكتب السابق. يرجى مراجعة الوحدات التي عليها ملاحظة حمراء واستكمال بياناتها، وتسجيل الدفعات أولًا بأول ليظهر التحصيل والمتأخرات بشكل صحيح.",
+      authorId: "u-admin",
+      authorName: "سلمان السلمان",
+      createdAt: nowIso,
+    }],
     audit: [{
       id: "a0", at: nowIso, actor: "النظام", action: "استيراد بيانات",
       detail: `تم استيراد ${TURAB_RECORDS.length} مستأجرًا من سجل المكتب`,

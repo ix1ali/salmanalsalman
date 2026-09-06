@@ -70,16 +70,16 @@ export default function BuildingsPage() {
           {data.buildings.map((b) => {
             const k = kpis(data, b.id);
             return (
-              <div key={b.id} className="card card-lg overflow-hidden">
+              <div key={b.id} className="card overflow-hidden">
                 <div className="h-1.5 w-full" style={{ background: b.color }} />
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-3">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white" style={{ background: b.color }}>
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-white" style={{ background: b.color }}>
                         <Icon name="building" size={21} />
                       </span>
                       <div>
-                        <h3 className="text-[15px] font-extrabold">{b.name}</h3>
+                        <h3 className="t-title">{b.name}</h3>
                         <p className="text-[11.5px] text-[var(--muted)]">
                           {b.area} · {b.block} · {b.buildingNo}
                         </p>
@@ -102,7 +102,7 @@ export default function BuildingsPage() {
                       ...(allow("finance.view") ? [["الدخل", KWD(k.monthlyRentRoll)]] : [["أدوار", num(data.floors.filter((f) => f.buildingId === b.id).length)]]),
                     ].map(([l, v]) => (
                       <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2">
-                        <p className="display text-[14px] tabular-nums">{v}</p>
+                        <p className="num font-bold text-[14px] tabular-nums">{v}</p>
                         <p className="text-[10.5px] text-[var(--muted)]">{l}</p>
                       </div>
                     ))}
@@ -146,7 +146,7 @@ export default function BuildingsPage() {
         {building && (
           <div className="space-y-4">
             <div className="card p-3">
-              <p className="mb-1.5 text-[13px] font-extrabold">بيانات العمارة</p>
+              <p className="mb-1.5 text-[13px] font-bold">بيانات العمارة</p>
               <KeyVal k="المالك" v={building.ownerName || "—"} icon="user" />
               <KeyVal k="المنطقة" v={building.area || "—"} icon="building" />
               <KeyVal k="القطعة / الشارع" v={`${building.block || "—"} · ${building.street || "—"}`} icon="info" />
@@ -159,7 +159,7 @@ export default function BuildingsPage() {
 
             <div className="card p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[13px] font-extrabold">الأدوار ({floors.length})</p>
+                <p className="text-[13px] font-bold">الأدوار ({floors.length})</p>
                 {allow("buildings.edit") && (
                   <button className="btn btn-ghost btn-sm" onClick={() => setAddFloor(true)}>
                     <Icon name="plus" size={14} /> دور
@@ -169,7 +169,7 @@ export default function BuildingsPage() {
               <ul className="space-y-1.5">
                 {floors.map((f) => (
                   <li key={f.floorId} className="flex items-center gap-2.5 rounded-xl bg-[var(--surface-2)] p-2.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-[12px] font-extrabold shadow-[var(--sh-1)]">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-[12px] font-bold shadow-[var(--sh-1)]">
                       {f.level < 0 ? "س" : f.level === 0 ? "أ" : f.level}
                     </span>
                     <div className="min-w-0 flex-1">

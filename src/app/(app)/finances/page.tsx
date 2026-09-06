@@ -9,7 +9,7 @@ import {
   monthsLabel, num, pct, thisPeriod,
 } from "@/lib/format";
 import {
-  Chip, Empty, Money, PageHeader, Progress, SearchBox, Segmented, Select, useConfirm,
+  Chip, Empty, Money, MonthPicker, PageHeader, Panel, Progress, SearchBox, Segmented, Select, useConfirm,
 } from "@/components/ui";
 import { BarChart } from "@/components/Charts";
 import { Icon } from "@/components/Icons";
@@ -124,11 +124,11 @@ export default function FinancesPage() {
   };
 
   const monthPicker = (
-    <div className="flex items-center gap-2">
-      <Icon name="calendar" size={16} className="shrink-0 text-[var(--muted)]" />
-      <Select value={period} onChange={(e) => setPeriod(e.target.value)}>
-        {periods.map((p) => <option key={p} value={p}>{monthAr(p)}</option>)}
-      </Select>
+    <div className="flex items-center justify-between gap-2">
+      <MonthPicker value={period} onChange={setPeriod} />
+      {period !== thisPeriod() && (
+        <button className="btn btn-ghost btn-sm" onClick={() => setPeriod(thisPeriod())}>الشهر الحالي</button>
+      )}
     </div>
   );
 
@@ -154,7 +154,7 @@ export default function FinancesPage() {
         <>
           {monthPicker}
 
-          <div className="card card-lg p-4">
+          <div className="card p-3.5">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-[12px] text-[var(--muted)]">المحصَّل</p>
@@ -193,13 +193,17 @@ export default function FinancesPage() {
               {sheet.map((r) => (
                 <li key={r.contract.id} className="card flex items-center gap-3 p-2.5">
                   <span
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[13px] font-extrabold text-white"
-                    style={{ background: r.payment ? "var(--ok)" : "var(--gold)" }}
+                    className="num grid h-8 w-9 shrink-0 place-items-center rounded-md text-[11.5px] font-bold"
+                    style={
+                      r.payment
+                        ? { background: "var(--ok-050)", color: "var(--ok)" }
+                        : { background: "var(--surface-3)", color: "var(--ink-2)" }
+                    }
                   >
                     {r.unit?.number}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-bold">{r.tenant?.name ?? "—"}</p>
+                    <p className="truncate text-[13.5px] font-semibold">{r.tenant?.name ?? "—"}</p>
                     <p className="truncate text-[11.5px] text-[var(--muted)]">
                       {r.payment
                         ? `سُدِّد ${dateShort(r.payment.paidAt)} · ${methodLabel[r.payment.method]}`
@@ -232,7 +236,7 @@ export default function FinancesPage() {
         <>
           {monthPicker}
 
-          <div className="card card-lg p-4">
+          <div className="card p-3.5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[12px] text-[var(--muted)]">مصروفات {monthAr(period)}</p>
@@ -317,10 +321,10 @@ export default function FinancesPage() {
           {monthPicker}
 
           {/* صافي الشهر */}
-          <div className="card card-lg overflow-hidden">
+          <div className="card overflow-hidden">
             <div className="bg-[var(--primary)] p-4 text-white">
               <p className="text-[12px] text-white/70">صافي ربح {monthAr(period)}</p>
-              <p className="display mt-1 text-[30px] leading-none" style={{ color: totals.net >= 0 ? "var(--gold)" : "#ff9aa4" }}>
+              <p className="num font-bold mt-1 text-[30px] leading-none" style={{ color: totals.net >= 0 ? "var(--gold)" : "#ff9aa4" }}>
                 {amount(totals.net)} <span className="text-[15px] opacity-70">د.ك</span>
               </p>
             </div>
@@ -340,8 +344,8 @@ export default function FinancesPage() {
           </div>
 
           {/* الرسم */}
-          <div className="card card-lg p-4">
-            <p className="mb-2 text-[14px] font-extrabold">الدخل والمصروفات — ١٢ شهرًا</p>
+          <div className="card p-3.5">
+            <p className="mb-2 t-section">الدخل والمصروفات — ١٢ شهرًا</p>
             <BarChart
               points={series.map((m) => ({ label: monthAr(m.period).split(" ")[0].slice(0, 3), a: m.income, b: m.expense }))}
               aLabel="الدخل" bLabel="المصروفات" height={200}
@@ -349,8 +353,8 @@ export default function FinancesPage() {
           </div>
 
           {/* جدول شهري */}
-          <div className="card card-lg overflow-hidden">
-            <p className="p-4 pb-2 text-[14px] font-extrabold">تفصيل الأشهر</p>
+          <div className="card overflow-hidden">
+            <p className="p-4 pb-2 t-section">تفصيل الأشهر</p>
             <ul className="divide-y divide-[var(--line)]">
               {[...series].reverse().map((m) => (
                 <li key={m.period} className="flex items-center gap-3 px-4 py-2.5">
@@ -375,8 +379,8 @@ export default function FinancesPage() {
           </div>
 
           {/* ملخص السنة */}
-          <div className="card card-lg p-4">
-            <p className="mb-3 text-[14px] font-extrabold">ملخص سنة {year}</p>
+          <div className="card p-3.5">
+            <p className="mb-3 t-section">ملخص سنة {year}</p>
             <div className="space-y-2">
               {[
                 ["إجمالي الدخل المحصَّل", yearly.income, "var(--ok)"],
@@ -403,7 +407,7 @@ export default function FinancesPage() {
       {/* ============================ لم يتم الدفع ============================ */}
       {tab === "arrears" && (
         <>
-          <div className="card card-lg flex items-center justify-between p-4">
+          <div className="card flex items-center justify-between p-4">
             <div>
               <p className="text-[12px] text-[var(--muted)]">إجمالي المتأخرات</p>
               <Money v={arTotal} size="xl" tone="#b3303b" />
@@ -416,11 +420,11 @@ export default function FinancesPage() {
               {ar.map((a) => (
                 <li key={a.contract.id} className="card p-3">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--danger-050)] text-[12px] font-extrabold text-[#b3303b]">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--danger-050)] text-[12px] font-bold text-[#b3303b]">
                       {a.unit?.number}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-extrabold">{a.tenant?.name ?? "—"}</p>
+                      <p className="truncate text-[13px] font-bold">{a.tenant?.name ?? "—"}</p>
                       <p className="truncate text-[11.5px] text-[var(--muted)]">
                         {a.missing.map(monthAr).slice(0, 3).join("، ")}
                         {a.missing.length > 3 ? ` وغيرها (${monthsLabel(a.missing.length)})` : ""}

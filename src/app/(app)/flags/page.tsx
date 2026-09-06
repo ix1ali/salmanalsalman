@@ -29,58 +29,49 @@ export default function FlagsPage() {
       const u = d.units.find((x) => x.id === id);
       if (u) { u.flagged = false; u.flagNote = undefined; u.flaggedAt = undefined; }
     }, { action: "إزالة تنبيه", detail: `الوحدة ${number}`, actor: user?.username });
-    toast("تم إزالة التنبيه");
+    toast("تمت إزالة التنبيه");
   };
 
   return (
     <div className="space-y-3">
-      <PageHeader
-        title="التنبيهات"
-        subtitle={`${num(flagged.length)} وحدة عليها ملاحظة`}
-        icon="alert"
-      />
+      <PageHeader title="التنبيهات" subtitle={`${num(flagged.length)} وحدة عليها ملاحظة`} />
 
       {flagged.length ? (
-        <ul className="space-y-2">
+        <div className="panel">
           {flagged.map((u) => {
             const t = tenantOfUnit(data, u.id).tenant;
             const b = data.buildings.find((x) => x.id === u.buildingId);
             return (
-              <li key={u.id} className="card overflow-hidden">
-                <button
-                  onClick={() => setOpenUnit(u.id)}
-                  className="flex w-full items-start gap-3 p-3 text-right"
-                >
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#d64550] text-[13px] font-extrabold text-white">
-                    {u.number}
+              <div key={u.id} className="row !items-start">
+                <span className="num grid h-8 w-9 shrink-0 place-items-center rounded-md bg-[var(--danger-050)] text-[11.5px] font-bold text-[var(--danger)]">
+                  {u.number}
+                </span>
+                <button onClick={() => setOpenUnit(u.id)} className="min-w-0 flex-1 text-right">
+                  <span className="block text-[13.5px] font-semibold">{u.flagNote}</span>
+                  <span className="t-xs block truncate text-[var(--muted)]">
+                    {b?.name} · {t?.name ?? "شاغرة"} · منذ {dateShort(u.flaggedAt)}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-extrabold text-[#b3303b]">{u.flagNote}</span>
-                    <span className="block text-[11.5px] text-[var(--muted)]">
-                      {b?.name} · {t?.name ?? "شاغرة"} · منذ {dateShort(u.flaggedAt)}
-                    </span>
-                  </span>
-                  <Icon name="chevronLeft" size={16} className="mt-1 shrink-0 text-[var(--muted)]" />
                 </button>
                 {allow("flags.edit") && (
                   <button
                     onClick={() => clear(u.id, u.number)}
-                    className="w-full border-t border-[var(--line)] bg-[var(--surface-2)] py-2 text-[12.5px] font-extrabold text-[var(--ok)]"
+                    className="btn btn-ghost btn-sm shrink-0 !text-[var(--ok)]"
                   >
-                    <Icon name="check" size={14} className="ml-1 inline-block align-middle" />
-                    تمت المعالجة — إزالة التنبيه
+                    <Icon name="check" size={13} /> تمت المعالجة
                   </button>
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       ) : (
-        <Empty
-          icon="checkCircle"
-          title="لا توجد ملاحظات"
-          body="جميع الوحدات في وضع سليم. لإضافة ملاحظة، افتح الوحدة من صفحة الشقق واختر «إضافة ملاحظة تنبيه»."
-        />
+        <div className="card">
+          <Empty
+            icon="checkCircle"
+            title="لا توجد ملاحظات"
+            body="جميع الوحدات في وضع سليم. لإضافة ملاحظة، افتح الوحدة من صفحة الشقق واختر «إضافة ملاحظة تنبيه»."
+          />
+        </div>
       )}
 
       <UnitSheet unitId={openUnit} onClose={() => setOpenUnit(null)} />

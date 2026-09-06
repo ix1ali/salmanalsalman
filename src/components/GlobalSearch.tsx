@@ -136,7 +136,7 @@ export default function GlobalSearch() {
       {open && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[190] flex items-start justify-center p-0 no-print sm:p-6" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-[#0b2545]/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-          <div className="anim-pop relative flex max-h-[92dvh] w-full flex-col overflow-hidden bg-[var(--surface)] shadow-[var(--sh-3)] sm:mt-8 sm:max-w-xl sm:rounded-3xl">
+          <div className="anim-pop relative flex max-h-[92dvh] w-full flex-col overflow-hidden bg-[var(--surface)] shadow-[var(--sh-3)] sm:mt-8 sm:max-w-xl sm:rounded-xl">
             <div className="flex items-center gap-2 border-b border-[var(--line)] px-3 py-2.5">
               <Icon name="search" size={19} className="shrink-0 text-[var(--muted)]" />
               <input
@@ -144,7 +144,7 @@ export default function GlobalSearch() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="ابحث عن شقة، مستأجر، رقم هاتف، أو وصل…"
-                className="flex-1 bg-transparent text-[15px] font-bold outline-none placeholder:font-normal placeholder:text-[var(--muted)]"
+                className="flex-1 bg-transparent t-title outline-none placeholder:font-normal placeholder:text-[var(--muted)]"
               />
               <button onClick={() => setOpen(false)} className="btn btn-icon btn-ghost !p-1.5" aria-label="إغلاق">
                 <Icon name="x" size={17} />
@@ -163,7 +163,7 @@ export default function GlobalSearch() {
               ) : groups.length ? (
                 groups.map((g) => (
                   <div key={g.label} className="mb-2">
-                    <p className="px-3 py-1.5 text-[11px] font-extrabold text-[var(--muted)]">{g.label}</p>
+                    <p className="px-3 py-1.5 text-[11px] font-bold text-[var(--muted)]">{g.label}</p>
                     <ul>
                       {g.items.map((h) => (
                         <li key={h.id}>
@@ -179,7 +179,7 @@ export default function GlobalSearch() {
                               <Icon name={h.icon} size={17} />
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13.5px] font-extrabold">{h.title}</span>
+                              <span className="block truncate text-[13.5px] font-semibold">{h.title}</span>
                               <span className="block truncate text-[11.5px] text-[var(--muted)]">{h.sub}</span>
                             </span>
                             {h.extra}

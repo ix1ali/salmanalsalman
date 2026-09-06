@@ -109,15 +109,15 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
       {dialog}
       <Sheet open={!!unitId} onClose={onClose} wide title={`شقة ${unit.number}`}>
         {/* رأس */}
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border-2 p-3" style={{ borderColor: color }}>
+        <div className="mb-4 flex items-center gap-3 rounded-lg border-2 p-3" style={{ borderColor: color }}>
           <div
-            className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-[17px] font-extrabold text-white"
+            className="grid h-14 w-14 shrink-0 place-items-center rounded-lg text-[17px] font-bold text-white"
             style={{ background: color }}
           >
             {unit.number}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-extrabold">
+            <p className="t-title">
               {kindLabel[unit.kind]} {unit.number} · <span style={{ color }}>{statusLabel[unit.status]}</span>
             </p>
             <p className="text-[12px] text-[var(--muted)]">{building?.name} · {floor?.name}</p>
@@ -126,10 +126,10 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
 
         {/* التنبيه */}
         {unit.flagged && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-[var(--danger-050)] p-3">
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg bg-[var(--danger-050)] p-3">
             <Icon name="alert" size={18} className="mt-0.5 shrink-0 text-[#b3303b]" />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-extrabold text-[#b3303b]">{unit.flagNote}</p>
+              <p className="text-[13px] font-bold text-[#b3303b]">{unit.flagNote}</p>
               <p className="text-[11px] text-[#b3303b]/70">مُعلّمة منذ {dateShort(unit.flaggedAt)}</p>
             </div>
           </div>
@@ -144,7 +144,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             ["الإيجار", KWD(unit.baseRent)],
           ].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2 text-center">
-              <p className="text-[13px] font-extrabold tabular-nums">{v}</p>
+              <p className="text-[13px] font-bold tabular-nums">{v}</p>
               <p className="text-[10.5px] text-[var(--muted)]">{l}</p>
             </div>
           ))}
@@ -153,7 +153,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {/* المستأجر */}
         {tenant && contract ? (
           <div className="card mb-3 p-3">
-            <p className="mb-2 text-[13px] font-extrabold">المستأجر</p>
+            <p className="mb-2 text-[13px] font-bold">المستأجر</p>
             <KeyVal k="الاسم" v={tenant.name} icon="user" />
             <KeyVal k="الرقم المدني" v={<span dir="ltr">{tenant.civilId || "—"}</span>} icon="idCard" />
             <KeyVal k="الهاتف" v={<span dir="ltr">{tenant.phone}</span>} icon="phone" />
@@ -175,7 +175,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           </div>
         ) : (
           <div className="card mb-3 flex flex-col items-center p-4 text-center">
-            <p className="text-[14px] font-extrabold">الوحدة شاغرة</p>
+            <p className="t-section">الوحدة شاغرة</p>
             <p className="mt-0.5 text-[12px] text-[var(--muted)]">لا يوجد عقد ساري على هذه الوحدة</p>
             {allow("contracts.edit") && (
               <button className="btn btn-primary btn-sm mt-3" onClick={() => setNewContract(true)}>
@@ -188,7 +188,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {/* العقد */}
         {contract && (
           <div className="card mb-3 p-3">
-            <p className="mb-2 text-[13px] font-extrabold">العقد</p>
+            <p className="mb-2 text-[13px] font-bold">العقد</p>
             <KeyVal k="من" v={dateShort(contract.startDate)} icon="calendar" />
             <KeyVal k="إلى" v={dateShort(contract.endDate)} icon="calendar" />
             <KeyVal k="الإيجار الشهري" v={KWD(contract.rent)} icon="wallet" />
@@ -215,7 +215,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {contract && allow("finance.view") && (
           <div className="card mb-3 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[13px] font-extrabold">إيجارات {monthAr(thisPeriod())}</p>
+              <p className="text-[13px] font-bold">إيجارات {monthAr(thisPeriod())}</p>
               <span
                 className="chip"
                 style={
@@ -291,7 +291,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
               <Icon name={unit.flagged ? "check" : "alert"} size={18} />
             </span>
             <span className="flex-1">
-              <span className="block text-[13.5px] font-extrabold">
+              <span className="block text-[13.5px] font-semibold">
                 {unit.flagged ? "إزالة التنبيه" : "إضافة ملاحظة تنبيه"}
               </span>
               <span className="block text-[11.5px] text-[var(--muted)]">
@@ -309,7 +309,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
               className="flex w-full items-center gap-2.5 p-3 text-right"
             >
               <Icon name="folder" size={17} className="text-[var(--muted)]" />
-              <span className="flex-1 text-[13.5px] font-extrabold">مستندات الوحدة</span>
+              <span className="flex-1 text-[13.5px] font-semibold">مستندات الوحدة</span>
               <Icon
                 name="chevronDown"
                 size={16}

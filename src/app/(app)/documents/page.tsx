@@ -98,7 +98,7 @@ export default function DocumentsPage() {
             <Icon name="alert" size={18} />
           </span>
           <div>
-            <p className="text-[13px] font-extrabold">{num(expiringSoon.length)} مستند قارب على الانتهاء</p>
+            <p className="text-[13px] font-bold">{num(expiringSoon.length)} مستند قارب على الانتهاء</p>
             <p className="text-[11.5px] text-[var(--muted)]">راجع البطاقات المدنية والتراخيص</p>
           </div>
         </div>
@@ -109,7 +109,6 @@ export default function DocumentsPage() {
       <Segmented
         value={kind}
         onChange={setKind}
-        size="sm"
         options={[
           { value: "all", label: "الكل", count: data.docs.length },
           ...(Object.keys(docLabel) as DocKind[])
@@ -131,7 +130,7 @@ export default function DocumentsPage() {
                   <Icon name={d.kind === "civil_id" || d.kind === "passport" ? "idCard" : d.mime.startsWith("image/") ? "eye" : "file"} size={19} />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-extrabold">{d.title}</p>
+                  <p className="truncate text-[13px] font-bold">{d.title}</p>
                   <p className="truncate text-[11.5px] text-[var(--muted)]">
                     {docLabel[d.kind]} · {ownerLabel[d.ownerType]}: {ownerName(d.ownerType, d.ownerId)}
                   </p>
@@ -180,7 +179,7 @@ export default function DocumentsPage() {
 
       {preview && (
         <div className="fixed inset-0 z-[190] grid place-items-center bg-[#0b1b2b]/80 p-4" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}>
-          <div className="anim-pop relative max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white" onClick={(e) => e.stopPropagation()}>
+          <div className="anim-pop relative max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
               <p className="truncate text-[13px] font-bold">{preview.name}</p>
               <button className="btn btn-icon btn-ghost !p-1.5" onClick={() => { URL.revokeObjectURL(preview.url); setPreview(null); }}>

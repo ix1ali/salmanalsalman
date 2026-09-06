@@ -13,96 +13,101 @@ import GlobalSearch from "./GlobalSearch";
 
 export interface NavItem { href: string; label: string; icon: IconName; perm: Perm }
 
-export const NAV: NavItem[] = [
-  { href: "/", label: "الرئيسية", icon: "home", perm: "dashboard.view" },
-  { href: "/apartments", label: "الشقق", icon: "grid", perm: "units.view" },
-  { href: "/tenants", label: "المستأجرون", icon: "users", perm: "tenants.view" },
-  { href: "/finances", label: "المالية", icon: "wallet", perm: "finance.view" },
-  { href: "/print", label: "الطباعة", icon: "print", perm: "reports.view" },
-  { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
-  { href: "/documents", label: "المستندات", icon: "folder", perm: "docs.view" },
-  { href: "/buildings", label: "العمارات", icon: "building", perm: "buildings.view" },
-  { href: "/users", label: "المستخدمون", icon: "shield", perm: "users.manage" },
-  { href: "/settings", label: "الإعدادات", icon: "cog", perm: "dashboard.view" },
+/** الأقسام مرتّبة كما يستخدمها المكتب: العمل اليومي، ثم المستندات، ثم الإدارة. */
+export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "العمل اليومي",
+    items: [
+      { href: "/", label: "الرئيسية", icon: "home", perm: "dashboard.view" },
+      { href: "/apartments", label: "الشقق", icon: "grid", perm: "units.view" },
+      { href: "/tenants", label: "المستأجرون", icon: "users", perm: "tenants.view" },
+      { href: "/finances", label: "المالية", icon: "wallet", perm: "finance.view" },
+    ],
+  },
+  {
+    label: "المستندات",
+    items: [
+      { href: "/print", label: "الطباعة", icon: "print", perm: "reports.view" },
+      { href: "/documents", label: "المستندات", icon: "folder", perm: "docs.view" },
+      { href: "/memos", label: "المراسلات", icon: "message", perm: "memos.view" },
+    ],
+  },
+  {
+    label: "الإدارة",
+    items: [
+      { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
+      { href: "/buildings", label: "العمارات", icon: "building", perm: "buildings.view" },
+      { href: "/users", label: "المستخدمون", icon: "shield", perm: "users.manage" },
+      { href: "/settings", label: "الإعدادات", icon: "cog", perm: "dashboard.view" },
+    ],
+  },
 ];
 
-function useNav() {
-  const { allow } = useAuth();
-  return useMemo(() => NAV.filter((n) => allow(n.perm)), [allow]);
-}
+export const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 const isActive = (path: string, href: string) =>
   href === "/" ? path === "/" : path === href || path.startsWith(href + "/");
 
-/* ---------------------------- Building switcher ---------------------------- */
+/* --------------------------- مبدّل العقار --------------------------- */
 
 function BuildingSwitcher() {
   const { data, activeBuilding, setActiveBuilding } = useStore();
   const [open, setOpen] = useState(false);
   const current = data.buildings.find((b) => b.id === activeBuilding);
 
+  // بعقار واحد لا داعي لزر يفتح قائمة من خيار واحد
+  if (data.buildings.length <= 1) {
+    return (
+      <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-[var(--ink)]">
+        <Icon name="building" size={15} className="shrink-0 text-[var(--muted)]" />
+        <span className="truncate">{data.buildings[0]?.name ?? "لا يوجد عقار"}</span>
+      </span>
+    );
+  }
+
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex max-w-[46vw] items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-extrabold shadow-[var(--sh-1)] sm:max-w-none"
+        className="flex min-w-0 max-w-[48vw] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[13px] font-semibold transition hover:border-[var(--line-strong)] sm:max-w-none"
       >
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: current?.color ?? "var(--ink)" }} />
-        <span className="truncate">{current?.name ?? "كل العمارات"}</span>
-        <Icon name="chevronDown" size={14} className="shrink-0 text-[var(--muted)]" />
+        <Icon name="building" size={14} className="shrink-0 text-[var(--muted)]" />
+        <span className="truncate">{current?.name ?? "كل العقارات"}</span>
+        <Icon name="chevronDown" size={13} className="shrink-0 text-[var(--faint)]" />
       </button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title="اختر العمارة">
-        <div className="space-y-2">
-          <button
-            onClick={() => { setActiveBuilding("all"); setOpen(false); }}
-            className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${
-              activeBuilding === "all" ? "border-[var(--primary)] bg-[var(--primary-050)]" : "border-[var(--line)] bg-[var(--surface)]"
-            }`}
-          >
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--bg-soft)] text-[var(--ink-2)]">
-              <Icon name="layers" size={19} />
+      <Sheet open={open} onClose={() => setOpen(false)} title="اختر العقار">
+        <div className="-mx-4 -my-3.5">
+          <button onClick={() => { setActiveBuilding("all"); setOpen(false); }} className="row row-link">
+            <Icon name="layers" size={17} className="shrink-0 text-[var(--muted)]" />
+            <span className="flex-1">
+              <span className="block text-[13.5px] font-semibold">كل العقارات</span>
+              <span className="t-xs block text-[var(--muted)]">
+                {data.buildings.length} عقار · {data.units.length} وحدة
+              </span>
             </span>
-            <div className="flex-1">
-              <p className="font-extrabold">كل العمارات</p>
-              <p className="text-[12px] text-[var(--muted)]">
-                {data.buildings.length} عمارة · {data.units.length} وحدة
-              </p>
-            </div>
-            {activeBuilding === "all" && <Icon name="check" size={18} className="text-[var(--primary)]" />}
+            {activeBuilding === "all" && <Icon name="check" size={16} className="text-[var(--primary)]" />}
           </button>
 
-          {data.buildings.map((b) => {
-            const units = data.units.filter((u) => u.buildingId === b.id);
-            const on = activeBuilding === b.id;
-            return (
-              <button
-                key={b.id}
-                onClick={() => { setActiveBuilding(b.id); setOpen(false); }}
-                className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right transition ${
-                  on ? "border-[var(--primary)] bg-[var(--primary-050)]" : "border-[var(--line)] bg-[var(--surface)]"
-                }`}
-              >
-                <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ background: b.color }}>
-                  <Icon name="building" size={19} />
+          {data.buildings.map((b) => (
+            <button key={b.id} onClick={() => { setActiveBuilding(b.id); setOpen(false); }} className="row row-link">
+              <Icon name="building" size={17} className="shrink-0 text-[var(--muted)]" />
+              <span className="flex-1">
+                <span className="block text-[13.5px] font-semibold">{b.name}</span>
+                <span className="t-xs block text-[var(--muted)]">
+                  {b.area} · {data.units.filter((u) => u.buildingId === b.id).length} وحدة
                 </span>
-                <div className="flex-1">
-                  <p className="font-extrabold">{b.name}</p>
-                  <p className="text-[12px] text-[var(--muted)]">
-                    {b.area} · {units.length} وحدة
-                  </p>
-                </div>
-                {on && <Icon name="check" size={18} className="text-[var(--primary)]" />}
-              </button>
-            );
-          })}
+              </span>
+              {activeBuilding === b.id && <Icon name="check" size={16} className="text-[var(--primary)]" />}
+            </button>
+          ))}
         </div>
       </Sheet>
     </>
   );
 }
 
-/* ----------------------------- User menu ---------------------------------- */
+/* ----------------------------- حساب المستخدم ----------------------------- */
 
 function UserMenu() {
   const { user, logout } = useAuth();
@@ -114,37 +119,31 @@ function UserMenu() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-white shadow-[var(--sh-1)]"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-white"
         aria-label="حسابي"
       >
-        <Icon name="user" size={17} />
+        <Icon name="user" size={16} />
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="حسابي">
-        <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--primary)] text-white">
-            <Icon name="user" size={22} />
+        <div className="flex items-center gap-3 rounded-lg bg-[var(--surface-2)] p-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-white">
+            <Icon name="user" size={19} />
           </span>
-          <div>
-            <p className="font-extrabold">{user.displayName}</p>
-            <p className="text-[12px] text-[var(--muted)]">
-              @{user.username} · {roleLabel[user.role]}
-            </p>
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold">{user.displayName}</p>
+            <p className="t-xs text-[var(--muted)]">@{user.username} · {roleLabel[user.role]}</p>
           </div>
         </div>
-        <div className="mt-3 space-y-2">
-          <Link
-            href="/settings"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 rounded-xl border border-[var(--line)] p-3 text-sm font-bold"
-          >
-            <Icon name="cog" size={18} className="text-[var(--muted)]" /> الإعدادات وكلمة المرور
+        <div className="mt-3 space-y-1.5">
+          <Link href="/settings" onClick={() => setOpen(false)} className="btn btn-ghost w-full !justify-start">
+            <Icon name="cog" size={16} /> الإعدادات وكلمة المرور
           </Link>
           <button
             onClick={() => { setOpen(false); logout(); router.push("/login"); }}
-            className="flex w-full items-center gap-2.5 rounded-xl border border-[var(--danger)]/25 bg-[var(--danger-050)] p-3 text-sm font-bold text-[#b3303b]"
+            className="btn btn-danger w-full !justify-start"
           >
-            <Icon name="logout" size={18} /> تسجيل الخروج
+            <Icon name="logout" size={16} /> تسجيل الخروج
           </button>
         </div>
       </Sheet>
@@ -152,124 +151,142 @@ function UserMenu() {
   );
 }
 
-/* -------------------------------- Shell ----------------------------------- */
+/* -------------------------------- الهيكل -------------------------------- */
+
+const MOBILE_PRIMARY = ["/", "/apartments", "/tenants", "/finances"];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const nav = useNav();
+  const { allow } = useAuth();
   const path = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const { data } = useStore();
 
+  const groups = useMemo(
+    () => NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => allow(n.perm)) })).filter((g) => g.items.length),
+    [allow]
+  );
+  const nav = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+
   useEffect(() => setMoreOpen(false), [path]);
 
-  const primary = nav.filter((n) => ["/", "/apartments", "/tenants", "/finances", "/flags"].includes(n.href)).slice(0, 4);
-  const rest = nav.filter((n) => !primary.some((p) => p.href === n.href));
+  const primary = nav.filter((n) => MOBILE_PRIMARY.includes(n.href));
+  const rest = nav.filter((n) => !MOBILE_PRIMARY.includes(n.href));
+  const flagged = data.units.filter((u) => u.flagged).length;
 
   return (
     <div className="min-h-dvh">
-      {/* ===== Sidebar (شاشات كبيرة) ===== */}
-      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[248px] flex-col border-l border-[var(--line)] bg-[var(--surface)] lg:flex no-print">
-        <div className="flex items-center gap-2.5 px-4 py-4">
-          <Logo size={38} />
-          <div>
-            <p className="text-[15px] font-extrabold leading-tight">{data.settings.orgName}</p>
-            <p className="text-[11px] text-[var(--muted)]">إدارة العمارات</p>
+      {/* ============================ القائمة الجانبية ============================ */}
+      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[var(--sidebar-w)] flex-col border-l border-[var(--line)] bg-[var(--surface)] lg:flex no-print">
+        <div className="flex items-center gap-2.5 border-b border-[var(--line)] px-4 py-3">
+          <Logo size={30} />
+          <div className="min-w-0">
+            <p className="truncate text-[12.5px] font-bold leading-tight">{data.settings.orgName}</p>
+            <p className="t-xs text-[var(--faint)]">إدارة العقارات</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
-          {nav.map((n) => {
-            const on = isActive(path, n.href);
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-bold transition ${
-                  on ? "bg-[var(--primary-050)] text-[var(--primary-700)]" : "text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
-                }`}
-              >
-                <Icon name={n.icon} size={19} />
-                {n.label}
-                {on && <span className="mr-auto h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />}
-              </Link>
-            );
-          })}
+
+        <nav className="flex-1 overflow-y-auto px-2.5 py-3">
+          {groups.map((g, gi) => (
+            <div key={g.label} className={gi ? "mt-4" : ""}>
+              <p className="px-2 pb-1.5 text-[10.5px] font-bold tracking-wide text-[var(--faint)]">{g.label}</p>
+              <div className="space-y-0.5">
+                {g.items.map((n) => {
+                  const on = isActive(path, n.href);
+                  return (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
+                        on ? "bg-[var(--primary)] text-white" : "text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+                      }`}
+                    >
+                      <Icon name={n.icon} size={17} strokeWidth={on ? 2 : 1.7} />
+                      {n.label}
+                      {n.href === "/flags" && flagged > 0 && (
+                        <span className={`num mr-auto rounded px-1.5 text-[11px] font-bold ${on ? "bg-white/20" : "bg-[var(--danger-050)] text-[var(--danger)]"}`}>
+                          {flagged}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 
-      {/* ===== Topbar ===== */}
-      <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--bg)]/85 backdrop-blur-xl lg:pr-[248px] no-print">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2.5 sm:px-4">
-          <div className="lg:hidden">
-            <Logo size={32} />
-          </div>
+      {/* ============================== الشريط العلوي ============================== */}
+      <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--surface)]/92 backdrop-blur-lg lg:pr-[var(--sidebar-w)] no-print">
+        <div className="mx-auto flex h-[var(--topbar-h)] max-w-[1100px] items-center gap-2 px-3 sm:px-5">
+          <span className="lg:hidden"><Logo size={26} /></span>
           <BuildingSwitcher />
-          <div className="mr-auto flex items-center gap-1.5">
+          <div className="mr-auto flex items-center gap-0.5">
             <GlobalSearch />
-            <Link href="/flags" className="btn btn-icon btn-ghost relative" aria-label="التنبيهات">
-              <Icon name="bell" size={18} />
-              {data.units.some((u) => u.flagged) && (
-                <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--danger)]" />
-              )}
-            </Link>
-            <Link href="/settings" className="btn btn-icon btn-ghost" aria-label="الإعدادات">
-              <Icon name="cog" size={18} />
+            <Link href="/flags" className="btn btn-icon btn-ghost relative !border-transparent !bg-transparent" aria-label="التنبيهات">
+              <Icon name="bell" size={17} />
+              {flagged > 0 && <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />}
             </Link>
             <UserMenu />
           </div>
         </div>
       </header>
 
-      {/* ===== Content ===== */}
-      <main className="mx-auto max-w-5xl px-3 pb-28 pt-4 sm:px-4 lg:pr-[264px] lg:pb-10">{children}</main>
+      {/* ================================ المحتوى ================================ */}
+      <main className="mx-auto max-w-[1100px] px-3 pb-24 pt-4 sm:px-5 lg:pb-10 lg:pr-[calc(var(--sidebar-w)+1.25rem)]">
+        {children}
+      </main>
 
-      {/* ===== Bottom nav (جوال) ===== */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur-xl lg:hidden no-print">
-        <div className="mx-auto grid max-w-lg grid-cols-5 px-1 pb-[env(safe-area-inset-bottom)]">
+      {/* ============================= شريط الجوال ============================= */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur-lg lg:hidden no-print">
+        <div className="mx-auto grid max-w-lg grid-cols-5 pb-[env(safe-area-inset-bottom)]">
           {primary.map((n) => {
             const on = isActive(path, n.href);
             return (
               <Link
                 key={n.href}
                 href={n.href}
-                className="flex flex-col items-center gap-0.5 py-2 text-[10.5px] font-bold transition"
-                style={{ color: on ? "var(--primary-700)" : "var(--muted)" }}
+                className="flex flex-col items-center gap-1 py-2 text-[10.5px] font-semibold transition"
+                style={{ color: on ? "var(--primary)" : "var(--muted)" }}
               >
-                <span
-                  className="grid h-8 w-12 place-items-center rounded-full transition"
-                  style={{ background: on ? "var(--primary-050)" : "transparent" }}
-                >
-                  <Icon name={n.icon} size={19} strokeWidth={on ? 2.2 : 1.8} />
-                </span>
+                <Icon name={n.icon} size={20} strokeWidth={on ? 2.1 : 1.7} />
                 {n.label}
               </Link>
             );
           })}
           <button
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center gap-0.5 py-2 text-[10.5px] font-bold text-[var(--muted)]"
+            className="relative flex flex-col items-center gap-1 py-2 text-[10.5px] font-semibold"
+            style={{ color: rest.some((n) => isActive(path, n.href)) ? "var(--primary)" : "var(--muted)" }}
           >
-            <span className="grid h-8 w-12 place-items-center rounded-full">
-              <Icon name="menu" size={19} />
-            </span>
+            <Icon name="menu" size={20} />
             المزيد
+            {flagged > 0 && <span className="absolute right-[27%] top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />}
           </button>
         </div>
       </nav>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="كل الأقسام">
-        <div className="grid grid-cols-3 gap-2.5">
-          {rest.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3.5 text-center text-[12px] font-bold"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--primary-050)] text-[var(--primary-700)]">
-                <Icon name={n.icon} size={19} />
-              </span>
-              {n.label}
-            </Link>
-          ))}
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="الأقسام">
+        <div className="-mx-4 -my-3.5">
+          {groups.map((g) => {
+            const items = g.items.filter((n) => rest.some((r) => r.href === n.href));
+            if (!items.length) return null;
+            return (
+              <div key={g.label}>
+                <p className="bg-[var(--surface-2)] px-4 py-1.5 text-[10.5px] font-bold text-[var(--faint)]">{g.label}</p>
+                {items.map((n) => (
+                  <Link key={n.href} href={n.href} className="row row-link">
+                    <Icon name={n.icon} size={18} className="shrink-0 text-[var(--muted)]" />
+                    <span className="flex-1 text-[13.5px] font-semibold">{n.label}</span>
+                    {n.href === "/flags" && flagged > 0 && (
+                      <span className="num rounded bg-[var(--danger-050)] px-1.5 text-[11px] font-bold text-[var(--danger)]">{flagged}</span>
+                    )}
+                    <Icon name="chevronLeft" size={15} className="text-[var(--faint)]" />
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </Sheet>
     </div>
