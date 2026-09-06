@@ -11,7 +11,7 @@ import {
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
 import { ContractForm, PaymentForm, TenantForm } from "@/components/forms";
-import { PrintOverlay, TenantStatementDoc } from "@/components/print";
+import { PrintOverlay, TenantStatementDoc, TenantsRegisterDoc } from "@/components/print";
 
 type Tab = "current" | "arrears" | "all";
 
@@ -22,6 +22,7 @@ export default function TenantsPage() {
   const [tab, setTab] = useState<Tab>("current");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [printRegister, setPrintRegister] = useState(false);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("id");
@@ -68,11 +69,18 @@ export default function TenantsPage() {
         title="المستأجرون"
         subtitle={`${num(list.length)} من ${num(activeIds.size)} مستأجر حالي`}
         actions={
-          allow("tenants.edit") ? (
-            <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
-              <Icon name="plus" size={14} /> مستأجر
-            </button>
-          ) : undefined
+          <>
+            {allow("reports.view") && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setPrintRegister(true)}>
+                <Icon name="print" size={13} /> السجل
+              </button>
+            )}
+            {allow("tenants.edit") && (
+              <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
+                <Icon name="plus" size={14} /> مستأجر
+              </button>
+            )}
+          </>
         }
       />
 
@@ -123,6 +131,10 @@ export default function TenantsPage() {
 
       {adding && <TenantForm open onClose={() => setAdding(false)} />}
       <TenantSheet id={openId} onClose={() => setOpenId(null)} />
+
+      <PrintOverlay open={printRegister} onClose={() => setPrintRegister(false)} fileTitle="سجل المستأجرين">
+        <TenantsRegisterDoc buildingId={activeBuilding === "all" ? data.buildings[0]?.id ?? "" : activeBuilding} />
+      </PrintOverlay>
     </div>
   );
 }

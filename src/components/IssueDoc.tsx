@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { Field, Select, Sheet, TextArea, TextInput } from "./ui";
 import { Icon, type IconName } from "./Icons";
-import { BANKS, ContractSheet, PrintOverlay, ReceiptSheet } from "./print";
+import { BANKS, ContractSheet, EvictionDoc, PrintOverlay, ReceiptSheet } from "./print";
 import { useStore } from "@/lib/store";
 import { monthAr, thisPeriod, todayISO } from "@/lib/format";
 import { lastPeriods } from "@/lib/selectors";
 
-type Kind = null | "receipt" | "contract";
+type Kind = null | "receipt" | "contract" | "eviction";
 
 /**
  * «إصدار مستند»: تختار نوع المستند أولًا، ثم تُملأ حقوله في ورقة واحدة
@@ -20,6 +20,7 @@ export default function IssueDoc() {
   const options: { k: Exclude<Kind, null>; icon: IconName; title: string; sub: string }[] = [
     { k: "receipt", icon: "receipt", title: "إصدار وصل", sub: "لأي مبلغ أو شخص خارج سجل النظام" },
     { k: "contract", icon: "file", title: "إصدار عقد", sub: "بنفس نص العقد المعتمد وبنوده" },
+    { k: "eviction", icon: "logout", title: "طلب إخلاء", sub: "إقرار تسليم العين وبراءة الذمة" },
   ];
 
   return (
@@ -46,6 +47,7 @@ export default function IssueDoc() {
 
       {kind === "receipt" && <ReceiptForm onClose={() => setKind(null)} />}
       {kind === "contract" && <ContractFormSheet onClose={() => setKind(null)} />}
+      {kind === "eviction" && <EvictionForm onClose={() => setKind(null)} />}
     </>
   );
 }
@@ -249,6 +251,60 @@ function ContractFormSheet({ onClose }: { onClose: () => void }) {
 
       <PrintOverlay open={open} onClose={() => setOpen(false)} fileTitle={`عقد إيجار — ${f.tenantName || "جديد"}`}>
         <ContractSheet f={f} />
+      </PrintOverlay>
+    </>
+  );
+}
+
+/* =========================== طلب إخلاء =========================== */
+
+function EvictionForm({ onClose }: { onClose: () => void }) {
+  const { data } = useStore();
+  const [open, setOpen] = useState(false);
+  const [contractId, setContractId] = useState("");
+  const [date, setDate] = useState(todayISO());
+
+  const contracts = data.contracts.filter((c) => c.status === "active");
+  const label = (c: (typeof contracts)[number]) => {
+    const u = data.units.find((x) => x.id === c.unitId);
+    const t = data.tenants.find((x) => x.id === c.tenantId);
+    return `${u?.number ?? "—"} — ${t?.name ?? "—"}`;
+  };
+  const c = contracts.find((x) => x.id === contractId);
+
+  return (
+    <>
+      <Sheet
+        open
+        onClose={onClose}
+        title="طلب إخلاء"
+        footer={
+          <div className="flex gap-2">
+            <button className="btn btn-primary flex-1" onClick={() => setOpen(true)} disabled={!c}>
+              <Icon name="print" size={15} /> عرض وطباعة
+            </button>
+            <button className="btn btn-ghost" onClick={onClose}>إلغاء</button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="المستأجر / الوحدة" required>
+            <Select value={contractId} onChange={(e) => setContractId(e.target.value)}>
+              <option value="">— اختر —</option>
+              {contracts.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>)}
+            </Select>
+          </Field>
+          <Field label="تاريخ الإخلاء">
+            <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">
+            يتضمّن الإقرار تسليم العين خالية من المتاع، وبراءة الذمة من وزارة الكهرباء والماء.
+          </p>
+        </div>
+      </Sheet>
+
+      <PrintOverlay open={open} onClose={() => setOpen(false)} fileTitle={`طلب إخلاء — ${c ? label(c) : ""}`}>
+        {c && <EvictionDoc unitId={c.unitId} tenantId={c.tenantId} date={date} />}
       </PrintOverlay>
     </>
   );

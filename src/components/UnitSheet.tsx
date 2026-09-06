@@ -8,6 +8,7 @@ import { KeyVal, Money, Sheet, TextArea, useConfirm } from "./ui";
 import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { ContractForm, PaymentForm, UnitForm } from "./forms";
+import { markPaid, unmarkPaid } from "@/lib/payments";
 import { ContractDoc, PrintOverlay, ReceiptDoc } from "./print";
 import { KWD, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod } from "@/lib/format";
 import { tenantOfUnit, unitBalance } from "@/lib/selectors";
@@ -211,60 +212,74 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           </div>
         )}
 
-        {/* الإيجار */}
+        {/* الإيجار والمستندات — كل إجراء مستقل عن الآخر */}
         {contract && allow("finance.view") && (
-          <div className="card mb-3 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[13px] font-bold">إيجارات {monthAr(thisPeriod())}</p>
-              <span
-                className="chip"
-                style={
-                  thisMonthPaid
-                    ? { background: "var(--ok-050)", color: "var(--ok)" }
-                    : { background: "var(--gold-050)", color: "var(--gold-600)" }
-                }
-              >
-                {thisMonthPaid ? "مدفوع" : "لم يُسدَّد"}
+          <div className="panel mb-3">
+            <div className="panel-head">
+              <span className="panel-title">إيجار {monthAr(thisPeriod())}</span>
+              <span className="tag" style={
+                thisMonthPaid
+                  ? { background: "var(--ok-050)", color: "var(--ok)" }
+                  : { background: "var(--warn-050)", color: "var(--warn)" }
+              }>
+                {thisMonthPaid ? "تم السداد" : "لم يُسدَّد"}
               </span>
             </div>
 
             {balance.due > 0 && (
-              <p className="mb-2 rounded-xl bg-[var(--danger-050)] p-2.5 text-[12.5px] font-bold text-[#b3303b]">
+              <p className="t-sm border-b border-[var(--line)] bg-[var(--danger-050)] px-3.5 py-2 font-semibold text-[var(--danger)]">
                 متأخر {KWD(balance.due)} — {balance.missing.map(monthAr).join("، ")}
               </p>
             )}
 
-            <div className="flex gap-2">
+            <div className="grid gap-1.5 p-3 sm:grid-cols-3">
               {allow("receipts.create") && (
                 <button
-                  className="btn btn-gold btn-sm flex-1"
-                  onClick={() => setNewPayment(balance.missing[0] ?? thisPeriod())}
+                  className={`btn ${thisMonthPaid ? "btn-ghost" : "btn-primary"}`}
+                  onClick={() => {
+                    update(
+                      (d) => (thisMonthPaid ? unmarkPaid(d, contract.id, thisPeriod()) : markPaid(d, contract, thisPeriod(), user?.username ?? "—")),
+                      { action: thisMonthPaid ? "إلغاء تأكيد سداد" : "تأكيد سداد", detail: `شقة ${unit.number} — ${monthAr(thisPeriod())}`, actor: user?.username }
+                    );
+                    toast(thisMonthPaid ? "تم إلغاء التأكيد" : "تم تأكيد السداد");
+                  }}
                 >
-                  <Icon name="plus" size={14} /> تسجيل دفعة
+                  <Icon name={thisMonthPaid ? "x" : "check"} size={15} />
+                  {thisMonthPaid ? "إلغاء السداد" : "تم السداد"}
                 </button>
               )}
-              {payments.length > 0 && (
-                <button className="btn btn-ghost btn-sm flex-1" onClick={() => setPrintKind("receipt")}>
-                  <Icon name="print" size={14} /> طباعة آخر وصل
-                </button>
-              )}
+              <button className="btn btn-ghost" disabled={!payments.length} onClick={() => setPrintKind("receipt")}>
+                <Icon name="print" size={15} /> طباعة الوصل
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPrintKind("contract")}>
+                <Icon name="print" size={15} /> طباعة العقد
+              </button>
             </div>
+
+            {allow("receipts.create") && (
+              <button
+                className="t-xs w-full border-t border-[var(--line)] py-2 font-semibold text-[var(--primary)]"
+                onClick={() => setNewPayment(balance.missing[0] ?? thisPeriod())}
+              >
+                تسجيل دفعة بتفاصيل أخرى (مبلغ، شيك، تاريخ…)
+              </button>
+            )}
 
             {payments.length > 0 && (
               <>
-                <ul className="mt-3 divide-y divide-[var(--line)]">
+                <div className="border-t border-[var(--line)]">
                   {(showAllPays ? payments : payments.slice(0, 3)).map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 py-2 text-[12.5px]">
-                      <Icon name="check" size={14} className="shrink-0 text-[var(--ok)]" />
-                      <span className="flex-1">{monthAr(p.period)}</span>
-                      <span className="text-[11px] text-[var(--muted)]">{methodLabel[p.method]}</span>
+                    <div key={p.id} className="row">
+                      <Icon name="check" size={13} className="shrink-0 text-[var(--ok)]" />
+                      <span className="flex-1 text-[12.5px]">{monthAr(p.period)}</span>
+                      <span className="t-xs text-[var(--muted)]">{methodLabel[p.method]} · {p.receiptNo}</span>
                       <Money v={p.amount} size="sm" />
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
                 {payments.length > 3 && (
                   <button
-                    className="mt-1 w-full text-[12px] font-bold text-[var(--primary)]"
+                    className="t-xs w-full border-t border-[var(--line)] py-2 font-semibold text-[var(--primary)]"
                     onClick={() => setShowAllPays((v) => !v)}
                   >
                     {showAllPays ? "إخفاء" : `عرض كل الدفعات (${payments.length})`}

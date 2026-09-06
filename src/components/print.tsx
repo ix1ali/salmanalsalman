@@ -805,3 +805,222 @@ export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
     </>
   );
 }
+
+/* ==================== طباعة الوصولات — وصلان في الصفحة ==================== */
+
+/** وصل مختصر بنصف صفحة A4، يُقصّ من المنتصف. */
+function HalfReceipt({ f }: { f: ReceiptFields }) {
+  const { data } = useStore();
+  const { dinars, fils } = dinarsFils(f.amount);
+  return (
+    <div style={{ padding: "10mm 8mm" }}>
+      <div className="mb-3 flex items-center justify-between border-b pb-2" style={{ borderColor: NAVY }}>
+        <div className="flex items-center gap-2">
+          <Logo size={30} />
+          <div>
+            <p className="text-[13px] font-extrabold" style={{ color: INK }}>عقار المالك / سلمان السلمان</p>
+            <p className="text-[9.5px]" style={{ color: MUTED }}>Real Estate / Salman AlSalman</p>
+          </div>
+        </div>
+        <div className="text-left">
+          <p className="text-[14px] font-extrabold" style={{ color: NAVY }}>وصل ايجار</p>
+          <p className="text-[10px]" style={{ color: MUTED }}>
+            {f.no ? `رقم ${f.no} · ` : ""}{dateShort(f.date)}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-[12px]">
+        <div className="flex items-baseline gap-2">
+          <span className="shrink-0 font-bold" style={{ color: INK }}>وصلنا من السيد / السادة</span>
+          <span className="flex-1 border-b border-dotted px-1 font-extrabold" style={{ borderColor: INK, color: NAVY }}>{f.from}</span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="shrink-0 font-bold" style={{ color: INK }}>مبلغ وقدره</span>
+          <span className="min-w-[80px] border-b border-dotted px-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
+            {amount(f.amount)}
+          </span>
+          <span className="shrink-0 font-bold" style={{ color: INK }}>دينار كويتي فقط لاغير</span>
+          <span className="text-[10.5px]" style={{ color: MUTED }}>
+            ({amountInWords(dinars)} دينارًا{fils ? ` و${num(fils)} فلسًا` : ""})
+          </span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <span className="flex items-baseline gap-1.5">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>نقدا / شيك رقم</span>
+            <span className="min-w-[60px] border-b border-dotted px-1" style={{ borderColor: INK }}>{f.method}</span>
+          </span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>على بنك</span>
+            <span className="min-w-[70px] border-b border-dotted px-1" style={{ borderColor: INK }}>{f.bank || " "}</span>
+          </span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <span className="flex items-baseline gap-1.5">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>وذلك عن ايجار شقة رقم</span>
+            <span className="min-w-[45px] border-b border-dotted px-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>{f.unitNo}</span>
+          </span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>الدور</span>
+            <span className="min-w-[55px] border-b border-dotted px-1 text-center" style={{ borderColor: INK }}>{f.floor}</span>
+          </span>
+          <span className="flex flex-1 items-baseline gap-1.5">
+            <span className="shrink-0 font-bold" style={{ color: INK }}>عن شهر</span>
+            <span className="min-w-[70px] flex-1 border-b border-dotted px-1 text-center font-bold" style={{ borderColor: INK }}>{f.monthText}</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-6 text-left">
+        <p className="text-[11px] font-bold" style={{ color: INK }}>توقيع المستلم</p>
+        <div className="mr-auto mt-6 w-40 border-b" style={{ borderColor: INK }} />
+      </div>
+      <p className="mt-2 text-center text-[9px]" style={{ color: "#9fb0c4" }}>{data.settings.orgName}</p>
+    </div>
+  );
+}
+
+/**
+ * دفعة وصولات للطباعة: وصلان في كل صفحة A4 مع خط قصّ في المنتصف،
+ * فتُقصّ الورقة نصفين ويُسلَّم كل نصف لشقة.
+ */
+export function ReceiptsBatchDoc({ payments }: { payments: Payment[] }) {
+  const { data } = useStore();
+  const unitById = new Map(data.units.map((u) => [u.id, u]));
+  const floorById = new Map(data.floors.map((f) => [f.id, f]));
+  const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
+
+  const toFields = (p: Payment): ReceiptFields => {
+    const u = unitById.get(p.unitId);
+    return {
+      no: p.receiptNo,
+      from: tenantById.get(p.tenantId)?.name ?? "",
+      amount: p.amount,
+      method: p.method === "cheque" ? (p.reference || "شيك") : methodLabel[p.method],
+      bank: p.bank ?? "",
+      unitNo: u?.number ?? "",
+      floor: floorById.get(u?.floorId ?? "")?.name ?? "",
+      monthText: monthAr(p.period),
+      date: p.paidAt,
+      notes: p.notes,
+    };
+  };
+
+  const pages: Payment[][] = [];
+  for (let i = 0; i < payments.length; i += 2) pages.push(payments.slice(i, i + 2));
+
+  return (
+    <>
+      {pages.map((pair, i) => (
+        <div key={i} style={{ breakAfter: i < pages.length - 1 ? "page" : "auto" }}>
+          <HalfReceipt f={toFields(pair[0])} />
+          <div
+            className="my-1 border-t border-dashed"
+            style={{ borderColor: "#b8c2cf", position: "relative" }}
+          >
+            <span
+              className="absolute -top-2 right-1/2 translate-x-1/2 bg-white px-2 text-[9px]"
+              style={{ color: "#9fb0c4" }}
+            >
+              ✂ يُقصّ هنا
+            </span>
+          </div>
+          {pair[1] ? <HalfReceipt f={toFields(pair[1])} /> : <div style={{ minHeight: "120mm" }} />}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ====================== كشف التحصيل الشهري (للتوقيع) ====================== */
+
+/**
+ * كشف بكل الوحدات مرتّبة بالدور ثم رقم الشقة، وأمام كل اسم خانة صح —
+ * نفس ورقة المكتب التي تُحمل وتُعلَّم باليد.
+ */
+export function CollectionSheetDoc({ buildingId, period }: { buildingId: string; period: string }) {
+  const { data } = useStore();
+  const building = data.buildings.find((b) => b.id === buildingId);
+  const floors = data.floors.filter((f) => f.buildingId === buildingId).sort((a, b) => a.level - b.level);
+  const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
+  const paid = new Set(
+    data.payments.filter((p) => p.period === period && p.buildingId === buildingId).map((p) => p.contractId ?? p.unitId)
+  );
+
+  const rows = floors.flatMap((f) =>
+    data.units
+      .filter((u) => u.floorId === f.id)
+      .sort((a, b) => a.number.localeCompare(b.number, "ar", { numeric: true }))
+      .map((u) => {
+        const c = data.contracts.find((x) => x.unitId === u.id && x.status === "active");
+        return { floor: f.name, unit: u.number, tenant: c ? tenantById.get(c.tenantId)?.name : undefined, rent: c?.rent ?? 0, done: c ? paid.has(c.id) : false, rented: !!c };
+      })
+  );
+
+  const due = rows.filter((r) => r.rented).reduce((a, r) => a + r.rent, 0);
+  const got = rows.filter((r) => r.done).reduce((a, r) => a + r.rent, 0);
+
+  return (
+    <>
+      <LetterHead
+        title="كشف التحصيل"
+        en="Collection Sheet"
+        meta={
+          <>
+            <p className="mt-1 text-[13px] font-bold" style={{ color: INK }}>{building?.name}</p>
+            <p className="text-[11.5px]" style={{ color: MUTED }}>{monthAr(period)}</p>
+          </>
+        }
+      />
+
+      <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-[12px]" style={{ color: MUTED }}>
+        <span>إجمالي المستحق: <b style={{ color: INK }}>{KWD(due)}</b></span>
+        <span>المحصَّل: <b style={{ color: "#2f7d5b" }}>{KWD(got)}</b></span>
+        <span>المتبقي: <b style={{ color: "#b4453f" }}>{KWD(Math.max(0, due - got))}</b></span>
+      </div>
+
+      <table className="w-full border-collapse text-[11.5px]">
+        <thead>
+          <tr style={{ background: "#eef1f5", color: NAVY }}>
+            <th className="border p-1.5 text-center" style={{ borderColor: LINE, width: 34 }}>✓</th>
+            <th className="border p-1.5 text-right" style={{ borderColor: LINE, width: 60 }}>الشقة</th>
+            <th className="border p-1.5 text-right" style={{ borderColor: LINE }}>اسم المستأجر</th>
+            <th className="border p-1.5 text-left" style={{ borderColor: LINE, width: 80 }}>الإيجار (د.ك)</th>
+            <th className="border p-1.5 text-right" style={{ borderColor: LINE, width: 90 }}>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {floors.map((f) => {
+            const list = rows.filter((r) => r.floor === f.name);
+            if (!list.length) return null;
+            return (
+              <React.Fragment key={f.id}>
+                <tr>
+                  <td className="border p-1 text-[11px] font-extrabold" style={{ borderColor: LINE, background: "#f9fbfd", color: NAVY }} colSpan={5}>
+                    {f.name}
+                  </td>
+                </tr>
+                {list.map((r) => (
+                  <tr key={r.floor + r.unit}>
+                    <td className="border p-1 text-center" style={{ borderColor: LINE }}>
+                      <span
+                        className="inline-block h-3.5 w-3.5 border align-middle"
+                        style={{ borderColor: "#8b95a3", background: r.done ? NAVY : "transparent" }}
+                      />
+                    </td>
+                    <td className="border p-1 font-bold" style={{ borderColor: LINE }}>{r.unit}</td>
+                    <td className="border p-1" style={{ borderColor: LINE }}>{r.tenant ?? "— شاغرة —"}</td>
+                    <td className="border p-1 text-left tabular-nums" style={{ borderColor: LINE }}>{r.rented ? amount(r.rent) : ""}</td>
+                    <td className="border p-1" style={{ borderColor: LINE }} />
+                  </tr>
+                ))}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <Signatures a="المحصِّل" b="المالك / الوكيل" />
+    </>
+  );
+}

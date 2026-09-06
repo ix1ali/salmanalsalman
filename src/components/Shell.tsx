@@ -25,17 +25,16 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "المستندات",
+    label: "المتابعة",
     items: [
-      { href: "/print", label: "الطباعة", icon: "print", perm: "reports.view" },
-      { href: "/documents", label: "المستندات", icon: "folder", perm: "docs.view" },
+      { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
       { href: "/memos", label: "المراسلات", icon: "message", perm: "memos.view" },
+      { href: "/documents", label: "الملفات", icon: "folder", perm: "docs.view" },
     ],
   },
   {
     label: "الإدارة",
     items: [
-      { href: "/flags", label: "التنبيهات", icon: "alert", perm: "flags.view" },
       { href: "/buildings", label: "العمارات", icon: "building", perm: "buildings.view" },
       { href: "/users", label: "المستخدمون", icon: "shield", perm: "users.manage" },
       { href: "/settings", label: "الإعدادات", icon: "cog", perm: "dashboard.view" },

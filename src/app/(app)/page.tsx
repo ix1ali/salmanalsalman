@@ -63,85 +63,66 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ============================ البطاقة الرئيسية ============================ */}
-      <div className="anim-up relative overflow-hidden rounded-[24px] bg-[var(--primary)] p-5 text-white shadow-[var(--sh-2)]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(201,153,46,.35), transparent 68%)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-24 -right-10 h-56 w-56 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(255,255,255,.10), transparent 65%)" }}
-        />
-
-        <div className="relative flex items-center gap-4">
-          <Gauge value={k.occupancyRate} size={122} label="إشغال" />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[12.5px] text-white/70">
-              <Icon name="building" size={14} /> {buildingName}
-            </p>
-            <p className="display mt-1.5 text-[34px] leading-none">
-              {num(k.occupied)}<span className="text-[16px] text-white/60"> / {num(k.totalUnits)}</span>
-            </p>
-            <p className="mt-1 text-[12px] text-white/70">وحدة مؤجرة</p>
-
-            <div className="mt-3 flex gap-2">
-              <span className="rounded-lg bg-white/12 px-2.5 py-1 text-[11.5px] font-bold">
-                <span className="text-[var(--gold)]">{num(k.vacant)}</span> شاغرة
-              </span>
-              {k.flaggedUnits > 0 && (
-                <span className="rounded-lg bg-white/12 px-2.5 py-1 text-[11.5px] font-bold">
-                  <span className="text-[#ff9aa4]">{num(k.flaggedUnits)}</span> ملاحظة
+      {/* ===================== الإشغال وتحصيل الشهر في لوح واحد ===================== */}
+      <section className="anim-up overflow-hidden rounded-xl border border-[var(--line)]">
+        <div className="bg-[var(--primary)] p-4 text-white">
+          <div className="flex items-center gap-4">
+            <Gauge value={k.occupancyRate} size={92} label="إشغال" />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-[12px] text-white/60">
+                <Icon name="building" size={13} /> {buildingName}
+              </p>
+              <p className="num mt-1 text-[28px] font-bold leading-none">
+                {num(k.occupied)}<span className="text-[14px] text-white/50"> / {num(k.totalUnits)}</span>
+              </p>
+              <p className="mt-0.5 text-[12px] text-white/60">وحدة مؤجرة</p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11.5px] font-semibold">
+                  <span className="num text-[var(--gold)]">{num(k.vacant)}</span> شاغرة
                 </span>
-              )}
+                {k.flaggedUnits > 0 && (
+                  <Link href="/flags" className="rounded-md bg-white/10 px-2 py-0.5 text-[11.5px] font-semibold transition hover:bg-white/20">
+                    <span className="num text-[#e8a09a]">{num(k.flaggedUnits)}</span> ملاحظة
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {allow("finance.view") && (
-          <div className="relative mt-4 grid grid-cols-3 gap-2 border-t border-white/15 pt-3.5 text-center">
-            {[
-              ["المحصَّل", k.collectedThisMonth, "#7ee0b0"],
-              ["المتبقي", remaining, "var(--gold)"],
-              ["صافي الشهر", net, net >= 0 ? "#ffffff" : "#ff9aa4"],
-            ].map(([l, v, c]) => (
-              <div key={l as string}>
-                <p className="display text-[16px] leading-none tabular-nums" style={{ color: c as string }}>
-                  {amount(v as number)}
-                  <span className="text-[10px] opacity-60"> د.ك</span>
-                </p>
-                <p className="mt-1 text-[10.5px] text-white/60">{l as string}</p>
-              </div>
-            ))}
-          </div>
+          <Link href="/finances" className="block bg-[var(--surface)] transition hover:bg-[var(--surface-2)]">
+            <div className="flex items-baseline justify-between px-4 pt-3">
+              <p className="text-[13px] font-bold">تحصيل {monthAr(thisPeriod())}</p>
+              <span className="t-xs font-semibold text-[var(--primary)]">التفاصيل ‹</span>
+            </div>
+            <div className="px-4 pt-2">
+              <Progress value={k.collectionRate} tone={remaining ? "gold" : "green"} height={6} />
+            </div>
+            <div className="mt-3 grid grid-cols-3 divide-x divide-x-reverse divide-[var(--line)] border-t border-[var(--line)]">
+              {[
+                ["المستحق", k.expectedThisMonth, "var(--ink)"],
+                ["المحصَّل", k.collectedThisMonth, "var(--ok)"],
+                ["المتبقي", remaining, remaining ? "var(--danger)" : "var(--muted)"],
+              ].map(([l, v, c]) => (
+                <div key={l as string} className="px-2 py-2.5 text-center">
+                  <p className="num text-[15px] font-bold leading-none" style={{ color: c as string }}>
+                    {amount(v as number)}<span className="text-[9.5px] font-semibold opacity-55"> د.ك</span>
+                  </p>
+                  <p className="t-xs mt-1 text-[var(--muted)]">{l as string}</p>
+                </div>
+              ))}
+            </div>
+          </Link>
         )}
-      </div>
-
-      {/* ============================ تحصيل الشهر ============================ */}
-      {allow("finance.view") && (
-        <Link href="/finances" className="card card-lg block p-4 transition hover:shadow-[var(--sh-2)]">
-          <div className="mb-2.5 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">تحصيل {monthAr(thisPeriod())}</p>
-            <span className="text-[12px] font-bold text-[var(--primary)]">التفاصيل ‹</span>
-          </div>
-          <Progress value={k.collectionRate} tone={remaining ? "gold" : "green"} height={12} />
-          <div className="mt-2.5 flex items-center justify-between text-[12.5px]">
-            <span className="font-bold" style={{ color: remaining ? "var(--gold-600)" : "var(--ok)" }}>
-              {remaining ? <>المتبقي <Money v={remaining} size="sm" tone="var(--gold-600)" /></> : "تم تحصيل كامل الإيجارات"}
-            </span>
-            <span className="text-[var(--muted)]">{pct(k.collectionRate)}</span>
-          </div>
-        </Link>
-      )}
+      </section>
 
       {/* ============================== اختصارات ============================== */}
       <div className="grid grid-cols-4 gap-2">
         {([
           ["/apartments", "grid", "الشقق"],
           allow("finance.view") && ["/finances", "wallet", "المالية"],
-          allow("reports.view") && ["/print", "print", "الطباعة"],
+          allow("flags.view") && ["/flags", "alert", "التنبيهات"],
           ["/tenants", "users", "المستأجرون"],
         ].filter(Boolean) as [string, IconName, string][]).map(([href, icon, label]) => (
           <Link key={href} href={href} className="card flex flex-col items-center gap-1.5 p-3 transition active:scale-[.96]">
@@ -167,7 +148,7 @@ export default function DashboardPage() {
             )}
             {allow("contracts.view") && expiring.length > 0 && (
               <AlertRow
-                href="/print" icon="calendar" tone="gold"
+                href="/finances?tab=contracts" icon="calendar" tone="gold"
                 title={`${num(expiring.length)} عقد يقارب على الانتهاء`}
                 right={<span className="text-[12px] font-bold text-[var(--gold-600)]">خلال {data.settings.contractAlertDays} يومًا</span>}
               />
@@ -212,7 +193,7 @@ export default function DashboardPage() {
         <div className="card card-lg p-4">
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-[14px] font-extrabold">عقود تقارب على الانتهاء</p>
-            <Link href="/print" className="text-[12px] font-bold text-[var(--primary)]">طباعة ‹</Link>
+            <Link href="/finances?tab=contracts" className="text-[12px] font-bold text-[var(--primary)]">الكل ‹</Link>
           </div>
           <ul className="divide-y divide-[var(--line)]">
             {expiring.slice(0, 4).map(({ c, left }) => (
