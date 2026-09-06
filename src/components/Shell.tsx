@@ -95,6 +95,29 @@ function BuildingSwitcher() {
   );
 }
 
+/* --------------------------- حالة المزامنة --------------------------- */
+
+/** يظهر فقط حين يكون هناك ما يُقال: حفظ جارٍ أو تعذّر الاتصال. */
+function SyncBadge() {
+  const { cloud } = useStore();
+  if (!cloud.on || (!cloud.syncing && !cloud.error)) return null;
+  const err = !!cloud.error;
+  return (
+    <span
+      title={cloud.error ?? "جاري الحفظ على الخادم"}
+      className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-bold"
+      style={
+        err
+          ? { background: "var(--danger-050)", color: "var(--danger)" }
+          : { background: "var(--warn-050)", color: "var(--warn)" }
+      }
+    >
+      <Icon name={err ? "alert" : "refresh"} size={13} className={err ? "" : "animate-spin"} />
+      <span className="hidden sm:inline">{err ? "لم يُحفظ" : "يحفظ…"}</span>
+    </span>
+  );
+}
+
 /* ----------------------------- حساب المستخدم ----------------------------- */
 
 function UserMenu() {
@@ -210,6 +233,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <span className="lg:hidden"><Logo size={26} /></span>
           <BuildingSwitcher />
           <div className="mr-auto flex items-center gap-0.5">
+            <SyncBadge />
             <GlobalSearch />
             <Link href="/flags" className="btn btn-icon btn-ghost relative !border-transparent !bg-transparent" aria-label="التنبيهات">
               <Icon name="bell" size={17} />

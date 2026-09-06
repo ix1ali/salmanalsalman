@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
-import { Field, KeyVal, PageHeader, Panel, Select, TextInput, useConfirm } from "@/components/ui";
+import { Field, KeyVal, PageHeader, Panel, TextInput, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import PasswordForm from "@/components/PasswordForm";
 import { dateShort, num, roleLabel } from "@/lib/format";
 
 export default function SettingsPage() {
-  const { data, update, resetAll, exportBackup, importBackup } = useStore();
+  const { data, update, resetAll, exportBackup, importBackup, cloud, seedCloud, reload } = useStore();
   const { user, allow, changePassword, logout } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [pwOpen, setPwOpen] = useState(false);
   const [org, setOrg] = useState(data.settings);
   const [dirty, setDirty] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const set = <K extends keyof typeof org>(k: K, v: (typeof org)[K]) => {
     setOrg((p) => ({ ...p, [k]: v }));
@@ -132,6 +133,74 @@ export default function SettingsPage() {
         </Panel>
       )}
 
+      {/* الاتصال */}
+      <Panel title="الاتصال والمشاركة" flush>
+        <div className="flex items-center gap-3 border-b border-[var(--line)] p-3.5">
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+            style={{
+              background: cloud.on ? "var(--ok-050)" : "var(--warn-050)",
+              color: cloud.on ? "var(--ok)" : "var(--warn)",
+            }}
+          >
+            <Icon name={cloud.on ? "cloud" : "lock"} size={19} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-bold">
+              {cloud.on ? "متصل بالخادم — البيانات مشتركة" : "محلي على هذا الجهاز فقط"}
+            </p>
+            <p className="t-xs text-[var(--muted)]">
+              {cloud.on
+                ? "كل تعديل يظهر عند بقية المستخدمين فورًا، ويُسجَّل في سجل العمليات."
+                : "لم تُضبط مفاتيح الخادم بعد، فالبيانات لا تغادر هذا المتصفح."}
+            </p>
+          </div>
+          {cloud.on && (
+            <span
+              className="tag shrink-0"
+              style={
+                cloud.error
+                  ? { background: "var(--danger-050)", color: "var(--danger)" }
+                  : cloud.syncing
+                  ? { background: "var(--warn-050)", color: "var(--warn)" }
+                  : { background: "var(--ok-050)", color: "var(--ok)" }
+              }
+            >
+              {cloud.error ? "خطأ" : cloud.syncing ? "يحفظ…" : "محدَّث"}
+            </span>
+          )}
+        </div>
+
+        {cloud.error && (
+          <p className="t-sm border-b border-[var(--line)] bg-[var(--danger-050)] px-3.5 py-2 font-semibold text-[var(--danger)]">
+            {cloud.error}
+          </p>
+        )}
+
+        {cloud.on && (
+          <div className="flex flex-wrap gap-2 p-3.5">
+            <button className="btn btn-ghost btn-sm" onClick={async () => { await reload(); toast("تم تحديث البيانات"); }}>
+              <Icon name="refresh" size={13} /> تحديث من الخادم
+            </button>
+            {allow("settings.manage") && data.buildings.length === 0 && (
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={seeding}
+                onClick={async () => {
+                  if (!(await confirm("تهيئة البيانات", "سيتم رفع سجل العمارة والمستأجرين إلى الخادم لأول مرة.", false))) return;
+                  setSeeding(true);
+                  try { await seedCloud(); toast("تم رفع بيانات المكتب"); }
+                  catch (e) { toast(e instanceof Error ? e.message : "تعذّر الرفع", "error"); }
+                  finally { setSeeding(false); }
+                }}
+              >
+                <Icon name="upload" size={13} /> {seeding ? "جاري الرفع…" : "تهيئة بيانات المكتب"}
+              </button>
+            )}
+          </div>
+        )}
+      </Panel>
+
       {/* البيانات */}
       <Panel title="البيانات والنسخ الاحتياطي" flush>
         <div className="grid grid-cols-4 divide-x divide-x-reverse divide-[var(--line)] border-b border-[var(--line)]">
@@ -157,24 +226,29 @@ export default function SettingsPage() {
               <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
                 <Icon name="upload" size={13} /> استيراد نسخة
               </button>
-              <button className="btn btn-danger btn-sm mr-auto" onClick={doReset}>
-                <Icon name="refresh" size={13} /> إعادة ضبط
-              </button>
+              {!cloud.on && (
+                <button className="btn btn-danger btn-sm mr-auto" onClick={doReset}>
+                  <Icon name="refresh" size={13} /> إعادة ضبط
+                </button>
+              )}
             </>
           )}
         </div>
         <p className="t-xs border-t border-[var(--line)] px-3.5 py-2.5 leading-relaxed text-[var(--muted)]">
-          البيانات محفوظة داخل هذا المتصفح والمستندات في IndexedDB. صدّر نسخة احتياطية بانتظام،
-          أو اربط النظام بـ Supabase للمزامنة بين الأجهزة.
+          {cloud.on
+            ? "البيانات والمستندات محفوظة على الخادم ويراها كل المستخدمين. صدّر نسخة احتياطية بين حين وآخر للاحتفاظ بها عندك."
+            : "البيانات محفوظة داخل هذا المتصفح والمستندات على الجهاز. صدّر نسخة احتياطية بانتظام."}
         </p>
       </Panel>
 
       {/* الأمان */}
       <Panel title="الأمان">
-        <KeyVal k="تشفير كلمات المرور" v="PBKDF2-SHA256 · 150,000 دورة" />
+        <KeyVal k="تشفير كلمات المرور" v={cloud.on ? "bcrypt على الخادم — لا تُحفظ ولا تُرسل كنص" : "PBKDF2-SHA256 · 150,000 دورة"} />
+        {cloud.on && <KeyVal k="حماية البيانات" v="صلاحيات على مستوى الصف (RLS) داخل قاعدة البيانات" />}
+        {cloud.on && <KeyVal k="الاتصال" v="TLS مع سياسة أمن محتوى صارمة" />}
         <KeyVal k="الإيقاف بعد المحاولات الفاشلة" v="خمس محاولات ← إيقاف 90 ثانية" />
         <KeyVal k="الخروج التلقائي عند الخمول" v="12 ساعة" />
-        <KeyVal k="مدة الجلسة القصوى" v={`${num(data.settings.sessionMinutes)} دقيقة`} />
+        <KeyVal k="سجل العمليات" v="كل إضافة وتعديل وحذف مقيّدة باسم فاعلها ووقتها" />
       </Panel>
 
       <p className="t-xs pb-2 text-center text-[var(--faint)]">

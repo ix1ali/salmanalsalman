@@ -39,10 +39,9 @@ export async function buildSeed(): Promise<AppData> {
     };
   };
 
+  // حساب المالك الوحيد — لا حسابات تجريبية في النظام
   const users: User[] = [
-    await mkUser("admin", "سلمان السلمان", "admin", "Admin@1234", "99000011"),
-    await mkUser("viewer", "محاسب المكتب", "viewer", "Viewer@1234", "99000022"),
-    await mkUser("guard", "حارس عمارة تراب", "guard", "Guard@1234", "99000033"),
+    await mkUser("ali", "علي", "admin", "Aa112233@", ""),
   ];
 
   /* -------------------------------- العقار -------------------------------- */
@@ -172,15 +171,15 @@ export async function buildSeed(): Promise<AppData> {
   const payments: Payment[] = [];
 
   return {
-    version: 4,
+    version: 5,
     users, buildings, floors, units, tenants, contracts, payments, expenses,
     docs: [],
     memos: [{
       id: "m-1",
       title: "بدء العمل بالنظام الجديد",
       body: "تم استيراد سجل المستأجرين من برنامج المكتب السابق. يرجى مراجعة الوحدات التي عليها ملاحظة حمراء واستكمال بياناتها، وتسجيل الدفعات أولًا بأول ليظهر التحصيل والمتأخرات بشكل صحيح.",
-      authorId: "u-admin",
-      authorName: "سلمان السلمان",
+      authorId: "u-ali",
+      authorName: "علي",
       createdAt: nowIso,
     }],
     audit: [{

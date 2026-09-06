@@ -8,15 +8,15 @@ import { dateShort, roleDesc, roleLabel } from "@/lib/format";
 import { Chip, Empty, Field, KeyVal, PageHeader, Select, Sheet, TextInput, useConfirm } from "@/components/ui";
 import PasswordForm from "@/components/PasswordForm";
 import { Icon } from "@/components/Icons";
-import { hashPassword, passwordStrength, randomSalt, uid } from "@/lib/crypto";
+import { passwordStrength } from "@/lib/crypto";
 import { PERMS } from "@/lib/permissions";
 import type { Role, User } from "@/lib/types";
 
 const roleTone = { admin: "teal", viewer: "sky", guard: "gold" } as const;
 
 export default function UsersPage() {
-  const { data, update } = useStore();
-  const { user, allow, changePassword } = useAuth();
+  const { data } = useStore();
+  const { user, allow, changePassword, saveUser, removeUser } = useAuth();
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const [adding, setAdding] = useState(false);
@@ -31,8 +31,8 @@ export default function UsersPage() {
   const toggleActive = async (u: User) => {
     if (u.id === user?.id) return toast("لا يمكنك إيقاف حسابك الشخصي", "error");
     if (!(await confirm(u.active ? "إيقاف الحساب" : "تفعيل الحساب", `${u.displayName} (${u.username})`, u.active))) return;
-    update((d) => { const t = d.users.find((x) => x.id === u.id); if (t) t.active = !t.active; },
-      { action: u.active ? "إيقاف مستخدم" : "تفعيل مستخدم", detail: u.username, actor: user?.username });
+    const res = await saveUser(u.id, { active: !u.active });
+    toast(res.ok ? "تم الحفظ" : res.message, res.ok ? "success" : "error");
   };
 
   const remove = async (u: User) => {
@@ -40,8 +40,8 @@ export default function UsersPage() {
     if (data.users.filter((x) => x.role === "admin" && x.active).length <= 1 && u.role === "admin")
       return toast("يجب بقاء مدير واحد على الأقل", "error");
     if (!(await confirm("حذف المستخدم", `سيتم حذف حساب ${u.displayName} نهائيًا.`))) return;
-    update((d) => { d.users = d.users.filter((x) => x.id !== u.id); },
-      { action: "حذف مستخدم", detail: u.username, actor: user?.username });
+    const res = await removeUser(u.id);
+    toast(res.ok ? "تم حذف الحساب" : res.message, res.ok ? "success" : "error");
   };
 
   return (
@@ -175,9 +175,10 @@ const DESCR: Record<Role, string[]> = {
 /* ============================== نموذج المستخدم ============================== */
 
 function UserForm({ open, onClose, target }: { open: boolean; onClose: () => void; target?: User }) {
-  const { data, update } = useStore();
-  const { user } = useAuth();
+  const { data } = useStore();
+  const { createUser, saveUser, canRenameUsers } = useAuth();
   const toast = useToast();
+  const [busy, setBusy] = useState(false);
   const [f, setF] = useState({
     username: target?.username ?? "",
     displayName: target?.displayName ?? "",
@@ -196,22 +197,15 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
       return toast("اسم المستخدم محجوز", "error");
     if (!target && strength.problems.length) return toast(`كلمة المرور: ${strength.problems[0]}`, "error");
 
-    if (target) {
-      update((d) => {
-        const t = d.users.find((x) => x.id === target.id);
-        if (t) { t.username = uname; t.displayName = f.displayName.trim(); t.role = f.role; t.phone = f.phone; }
-      }, { action: "تعديل مستخدم", detail: uname, actor: user?.username });
-    } else {
-      const salt = randomSalt();
-      const hash = await hashPassword(f.password, salt);
-      update((d) => {
-        d.users.push({
-          id: uid("u-"), username: uname, displayName: f.displayName.trim(), role: f.role,
-          salt, hash, active: true, buildingIds: "all", phone: f.phone,
-          createdAt: new Date().toISOString(), mustChangePassword: true,
-        });
-      }, { action: "إضافة مستخدم", detail: `${uname} (${roleLabel[f.role]})`, actor: user?.username });
-    }
+    setBusy(true);
+    const res = target
+      ? await saveUser(target.id, {
+          displayName: f.displayName.trim(), role: f.role, phone: f.phone,
+          ...(canRenameUsers ? { username: uname } : {}),
+        })
+      : await createUser({ username: uname, displayName: f.displayName.trim(), role: f.role, phone: f.phone, password: f.password });
+    setBusy(false);
+    if (!res.ok) return toast(res.message, "error");
     toast("تم الحفظ");
     onClose();
   };
@@ -223,7 +217,9 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
       title={target ? `تعديل ${target.displayName}` : "مستخدم جديد"}
       footer={
         <div className="flex gap-2">
-          <button className="btn btn-primary flex-1" onClick={save}><Icon name="check" size={16} /> حفظ</button>
+          <button className="btn btn-primary flex-1" onClick={save} disabled={busy}>
+            <Icon name="check" size={16} /> {busy ? "جاري الحفظ…" : "حفظ"}
+          </button>
           <button className="btn btn-ghost" onClick={onClose}>إلغاء</button>
         </div>
       }
@@ -232,8 +228,18 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
         <Field label="الاسم الظاهر" required className="sm:col-span-2">
           <TextInput value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} />
         </Field>
-        <Field label="اسم المستخدم" required hint="إنجليزي، بدون مسافات">
-          <TextInput value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} dir="ltr" autoCapitalize="none" />
+        <Field
+          label="اسم المستخدم"
+          required
+          hint={target && !canRenameUsers ? "لا يمكن تغييره بعد الإنشاء" : "إنجليزي، بدون مسافات — لا فرق بين الحروف الكبيرة والصغيرة"}
+        >
+          <TextInput
+            value={f.username}
+            onChange={(e) => setF({ ...f, username: e.target.value })}
+            dir="ltr"
+            autoCapitalize="none"
+            disabled={!!target && !canRenameUsers}
+          />
         </Field>
         <Field label="رقم الهاتف">
           <TextInput value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, "") })} dir="ltr" inputMode="tel" />

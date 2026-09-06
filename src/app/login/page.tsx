@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { Icon, Logo } from "@/components/Icons";
-import { roleDesc, roleLabel } from "@/lib/format";
-
-const DEMO = [
-  { u: "admin", p: "Admin@1234", role: "admin" as const },
-  { u: "viewer", p: "Viewer@1234", role: "viewer" as const },
-  { u: "guard", p: "Guard@1234", role: "guard" as const },
-];
 
 export default function LoginPage() {
   const { login, user, loading, notice, clearNotice, lockInfo } = useAuth();
@@ -55,13 +48,6 @@ export default function LoginPage() {
     if (info.locked) setWait(info.waitSeconds);
     setPassword("");
     pwRef.current?.focus();
-  };
-
-  const fill = (d: (typeof DEMO)[number]) => {
-    setUsername(d.u);
-    setPassword(d.p);
-    setError(null);
-    submit(undefined, { u: d.u, p: d.p });
   };
 
   return (
@@ -113,7 +99,7 @@ export default function LoginPage() {
                   autoCapitalize="none"
                   spellCheck={false}
                   dir="ltr"
-                  placeholder="admin"
+                  placeholder="اسم المستخدم"
                   disabled={busy || wait > 0}
                 />
               </div>
@@ -174,36 +160,11 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-5 border-t border-[var(--line)] pt-4">
-            <p className="mb-2 flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--muted)]">
-              <Icon name="sparkle" size={13} /> حسابات تجريبية — اضغط للدخول مباشرة
-            </p>
-            <div className="grid gap-1.5">
-              {DEMO.map((d) => (
-                <button
-                  key={d.u}
-                  type="button"
-                  onClick={() => fill(d)}
-                  disabled={busy || wait > 0}
-                  className="flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-right transition hover:border-[var(--primary)] hover:bg-[var(--primary-050)] disabled:opacity-50"
-                >
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--surface)] text-[var(--primary-700)] shadow-[var(--sh-1)]">
-                    <Icon name={d.role === "admin" ? "shield" : d.role === "viewer" ? "eye" : "key"} size={16} />
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-[12.5px] font-bold">{roleLabel[d.role]}</span>
-                    <span className="block text-[11px] text-[var(--muted)]">{roleDesc[d.role]}</span>
-                  </span>
-                  <span dir="ltr" className="font-mono text-[10.5px] text-[var(--muted)]">{d.u}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-[var(--muted)]">
           <Icon name="shield" size={13} />
-          كلمات المرور محفوظة مشفّرة (PBKDF2) ولا تُخزَّن كنص صريح
+          اتصال مشفّر · كلمات المرور محفوظة مجزّأة ولا تُخزَّن كنص صريح
         </p>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
 import { Icon } from "./Icons";
 import { Chip, Empty, Field, Select, TextInput, useConfirm } from "./ui";
-import { blobUrl, delBlob, openBlob, putBlob } from "@/lib/idb";
+import { blobUrl, delBlob, openBlob, putBlob } from "@/lib/files";
 import { uid } from "@/lib/crypto";
 import { bytes, dateShort, docLabel } from "@/lib/format";
 import type { DocKind, OwnerType } from "@/lib/types";

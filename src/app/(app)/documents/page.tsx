@@ -7,7 +7,7 @@ import { bytes, dateShort, docLabel, num } from "@/lib/format";
 import { Chip, Empty, PageHeader, SearchBox, Segmented, Sheet, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
-import { blobUrl, delBlob, openBlob } from "@/lib/idb";
+import { blobUrl, delBlob, openBlob } from "@/lib/files";
 import type { DocKind, OwnerType } from "@/lib/types";
 
 const ownerLabel: Record<OwnerType, string> = {
