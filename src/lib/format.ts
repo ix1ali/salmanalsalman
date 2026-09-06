@@ -38,10 +38,14 @@ export const dateShort = (iso?: string) => {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 };
 
+export const MONTH_NAMES = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
+
 export const monthAr = (period: string) => {
   const [y, m] = period.split("-");
-  const names = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-  return `${names[Number(m) - 1] ?? m} ${y}`;
+  return `${MONTH_NAMES[Number(m) - 1] ?? m} ${y}`;
 };
 
 /** YYYY-MM-DD بتوقيت الجهاز — toISOString يزيح اليوم في الكويت (UTC+3). */

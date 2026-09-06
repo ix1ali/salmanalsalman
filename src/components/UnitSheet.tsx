@@ -9,7 +9,7 @@ import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { ContractForm, PaymentForm, UnitForm } from "./forms";
 import { markPaid, unmarkPaid } from "@/lib/payments";
-import { ContractDoc, PrintOverlay, ReceiptDoc } from "./print";
+import { ContractDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
 import { KWD, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod } from "@/lib/format";
 import { tenantOfUnit, unitBalance } from "@/lib/selectors";
 import { unitColor } from "@/lib/unitColor";
@@ -194,21 +194,16 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             <KeyVal k="إلى" v={dateShort(contract.endDate)} icon="calendar" />
             <KeyVal k="الإيجار الشهري" v={KWD(contract.rent)} icon="wallet" />
             <KeyVal k="التأمين" v={KWD(contract.deposit)} icon="lock" />
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              <button className="btn btn-primary btn-sm flex-1" onClick={() => setPrintKind("contract")}>
-                <Icon name="print" size={14} /> طباعة العقد
-              </button>
-              {allow("contracts.edit") && (
-                <>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setRenewOpen(true)}>
-                    <Icon name="refresh" size={14} /> تجديد
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={endContract}>
-                    <Icon name="x" size={14} /> إنهاء
-                  </button>
-                </>
-              )}
-            </div>
+            {allow("contracts.edit") && (
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button className="btn btn-ghost btn-sm flex-1" onClick={() => setRenewOpen(true)}>
+                  <Icon name="refresh" size={14} /> تجديد العقد
+                </button>
+                <button className="btn btn-danger btn-sm" onClick={endContract}>
+                  <Icon name="x" size={14} /> إنهاء
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -236,7 +231,15 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
               {allow("receipts.create") && (
                 <button
                   className={`btn ${thisMonthPaid ? "btn-ghost" : "btn-primary"}`}
-                  onClick={() => {
+                  onClick={async () => {
+                    const ok = thisMonthPaid
+                      ? await confirm("إلغاء تأكيد السداد", `سيُحذف وصل ${thisMonthPaid.receiptNo} لشهر ${monthAr(thisPeriod())} — شقة ${unit.number}.`)
+                      : await confirm(
+                          "تأكيد السداد",
+                          `تسجيل استلام إيجار ${monthAr(thisPeriod())} من ${tenant?.name ?? "المستأجر"} — شقة ${unit.number} بمبلغ ${KWD(contract.rent)}.`,
+                          false
+                        );
+                    if (!ok) return;
                     update(
                       (d) => (thisMonthPaid ? unmarkPaid(d, contract.id, thisPeriod()) : markPaid(d, contract, thisPeriod(), user?.username ?? "—")),
                       { action: thisMonthPaid ? "إلغاء تأكيد سداد" : "تأكيد سداد", detail: `شقة ${unit.number} — ${monthAr(thisPeriod())}`, actor: user?.username }
@@ -248,7 +251,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                   {thisMonthPaid ? "إلغاء السداد" : "تم السداد"}
                 </button>
               )}
-              <button className="btn btn-ghost" disabled={!payments.length} onClick={() => setPrintKind("receipt")}>
+              <button className="btn btn-ghost" onClick={() => setPrintKind("receipt")}>
                 <Icon name="print" size={15} /> طباعة الوصل
               </button>
               <button className="btn btn-ghost" onClick={() => setPrintKind("contract")}>
@@ -414,12 +417,19 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {contract && <ContractDoc contract={contract} />}
       </PrintOverlay>
 
+      {/* الوصل جاهز دائمًا: من دفعة الشهر إن سُجِّلت، وإلا وصل بقيمة العقد للتوزيع */}
       <PrintOverlay
         open={printKind === "receipt"}
         onClose={() => setPrintKind(null)}
-        fileTitle={payments[0] ? `وصل ${payments[0].receiptNo}` : ""}
+        fileTitle={`وصل — ${tenant?.name ?? `شقة ${unit.number}`}`}
       >
-        {payments[0] && <ReceiptDoc payment={payments[0]} />}
+        {contract && (
+          <ReceiptSheet
+            f={thisMonthPaid
+              ? receiptOfPayment(data, thisMonthPaid)
+              : receiptOfContract(data, contract, thisPeriod())}
+          />
+        )}
       </PrintOverlay>
     </>
   );

@@ -49,7 +49,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!loaded || !loaded.users?.length || (loaded.version ?? 1) < 4) loaded = await buildSeed();
       if (cancelled) return;
       setData(loaded);
-      setActive(localStorage.getItem(BKEY) || "all");
+      // العمل دائمًا داخل عقار واحد: خلط أدوار عقارين في قائمة واحدة يربك القراءة.
+      // النظرة الشاملة لكل العقارات مكانها بطاقة مستقلة في الصفحة الرئيسية.
+      const saved = localStorage.getItem(BKEY);
+      const valid = saved && loaded.buildings.some((b) => b.id === saved) ? saved : loaded.buildings[0]?.id ?? "";
+      setActive(valid);
       setReady(true);
     })();
     return () => { cancelled = true; };

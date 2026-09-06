@@ -71,23 +71,12 @@ function BuildingSwitcher() {
         className="flex min-w-0 max-w-[48vw] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[13px] font-semibold transition hover:border-[var(--line-strong)] sm:max-w-none"
       >
         <Icon name="building" size={14} className="shrink-0 text-[var(--muted)]" />
-        <span className="truncate">{current?.name ?? "كل العقارات"}</span>
+        <span className="truncate">{current?.name ?? data.buildings[0]?.name ?? "—"}</span>
         <Icon name="chevronDown" size={13} className="shrink-0 text-[var(--faint)]" />
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="اختر العقار">
         <div className="-mx-4 -my-3.5">
-          <button onClick={() => { setActiveBuilding("all"); setOpen(false); }} className="row row-link">
-            <Icon name="layers" size={17} className="shrink-0 text-[var(--muted)]" />
-            <span className="flex-1">
-              <span className="block text-[13.5px] font-semibold">كل العقارات</span>
-              <span className="t-xs block text-[var(--muted)]">
-                {data.buildings.length} عقار · {data.units.length} وحدة
-              </span>
-            </span>
-            {activeBuilding === "all" && <Icon name="check" size={16} className="text-[var(--primary)]" />}
-          </button>
-
           {data.buildings.map((b) => (
             <button key={b.id} onClick={() => { setActiveBuilding(b.id); setOpen(false); }} className="row row-link">
               <Icon name="building" size={17} className="shrink-0 text-[var(--muted)]" />

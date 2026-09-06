@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { arrears, floorStats, kpis, monthlySeries, scope } from "@/lib/selectors";
+import { arrears, floorStats, kpis, lastPeriods, monthlySeries, scope } from "@/lib/selectors";
 import { KWD, amount, dateShort, monthAr, monthsLabel, num, pct, thisPeriod } from "@/lib/format";
 import { Money, Progress } from "@/components/ui";
-import { BarChart, Gauge } from "@/components/Charts";
+import { BarChart, Donut, Gauge } from "@/components/Charts";
 import { Icon, type IconName } from "@/components/Icons";
 
 const HIJRI_FMT = new Intl.DateTimeFormat("ar-KW-u-ca-islamic-umalqura-nu-latn", {
@@ -39,15 +39,31 @@ export default function DashboardPage() {
       .sort((a, b) => a.left - b.left);
   }, [s.contracts, data.settings.contractAlertDays]);
 
+  /* نسبة التحصيل شهرًا بشهر — المستحق يُحسب من العقود السارية في ذلك الشهر */
+  const trend = useMemo(
+    () =>
+      lastPeriods(6).map((p) => {
+        const due = s.contracts
+          .filter((c) => c.status !== "terminated" && c.startDate.slice(0, 7) <= p && c.endDate.slice(0, 7) >= p)
+          .reduce((a, c) => a + c.rent, 0);
+        const got = s.payments.filter((x) => x.period === p).reduce((a, x) => a + x.amount, 0);
+        return { period: p, due, got, rate: due ? Math.min(100, (got / due) * 100) : 0 };
+      }),
+    [s.contracts, s.payments]
+  );
+
+  const all = useMemo(() => kpis(data, "all"), [data]);
+
   const buildingName = activeBuilding === "all" ? "كل العقارات" : data.buildings.find((b) => b.id === activeBuilding)?.name;
   const unitById = useMemo(() => new Map(data.units.map((u) => [u.id, u])), [data.units]);
   const tenantById = useMemo(() => new Map(data.tenants.map((t) => [t.id, t])), [data.tenants]);
 
   const remaining = Math.max(0, k.expectedThisMonth - k.collectedThisMonth);
-  const net = k.collectedThisMonth - k.expensesThisMonth;
   const now = new Date();
   const hour = now.getHours();
   const greet = hour < 5 ? "مساء الخير" : hour < 12 ? "صباح الخير" : hour < 17 ? "طاب يومك" : "مساء الخير";
+
+  const attention = ar.length > 0 || expiring.length > 0 || k.flaggedUnits > 0;
 
   return (
     <div className="space-y-3">
@@ -63,7 +79,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ===================== الإشغال وتحصيل الشهر في لوح واحد ===================== */}
+      {/* ================= الإشغال وتحصيل الشهر في لوح واحد ================= */}
       <section className="anim-up overflow-hidden rounded-xl border border-[var(--line)]">
         <div className="bg-[var(--primary)] p-4 text-white">
           <div className="flex items-center gap-4">
@@ -134,86 +150,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* =========================== يحتاج انتباهك =========================== */}
-      {(ar.length > 0 || expiring.length > 0 || k.flaggedUnits > 0) && (
-        <div className="card card-lg overflow-hidden">
-          <p className="px-4 pb-1 pt-3.5 text-[14px] font-extrabold">يحتاج انتباهك</p>
-          <div className="divide-y divide-[var(--line)]">
-            {allow("finance.view") && k.arrearsCount > 0 && (
-              <AlertRow
-                href="/finances?tab=arrears" icon="alert" tone="rose"
-                title={`${num(k.arrearsCount)} مستأجر لم يسدّد`}
-                right={<Money v={k.arrearsTotal} size="sm" tone="#b3303b" />}
-              />
-            )}
-            {allow("contracts.view") && expiring.length > 0 && (
-              <AlertRow
-                href="/finances?tab=contracts" icon="calendar" tone="gold"
-                title={`${num(expiring.length)} عقد يقارب على الانتهاء`}
-                right={<span className="text-[12px] font-bold text-[var(--gold-600)]">خلال {data.settings.contractAlertDays} يومًا</span>}
-              />
-            )}
-            {allow("flags.view") && k.flaggedUnits > 0 && (
-              <AlertRow
-                href="/flags" icon="alert" tone="navy"
-                title={`${num(k.flaggedUnits)} وحدة عليها ملاحظة`}
-                right={<span className="text-[12px] font-bold text-[var(--primary)]">عرض</span>}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ======================== أعلى المتأخرات ======================== */}
-      {allow("finance.view") && ar.length > 0 && (
-        <div className="card card-lg p-4">
-          <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">أعلى المتأخرات</p>
-            <Link href="/finances?tab=arrears" className="text-[12px] font-bold text-[var(--primary)]">الكل ‹</Link>
-          </div>
-          <ul className="divide-y divide-[var(--line)]">
-            {ar.map((a) => (
-              <li key={a.contract.id} className="flex items-center gap-3 py-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--danger-050)] text-[11px] font-extrabold text-[#b3303b]">
-                  {a.unit?.number}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{a.tenant?.name ?? "—"}</p>
-                  <p className="text-[11.5px] text-[var(--muted)]">{monthsLabel(a.missing.length)}</p>
-                </div>
-                <Money v={a.amount} size="sm" className="shrink-0" tone="#b3303b" />
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* ==================== العقود التي تقارب على الانتهاء ==================== */}
-      {allow("contracts.view") && expiring.length > 0 && (
-        <div className="card card-lg p-4">
-          <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">عقود تقارب على الانتهاء</p>
-            <Link href="/finances?tab=contracts" className="text-[12px] font-bold text-[var(--primary)]">الكل ‹</Link>
-          </div>
-          <ul className="divide-y divide-[var(--line)]">
-            {expiring.slice(0, 4).map(({ c, left }) => (
-              <li key={c.id} className="flex items-center gap-3 py-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--gold-050)] text-[11px] font-extrabold text-[var(--gold-600)]">
-                  {unitById.get(c.unitId)?.number}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{tenantById.get(c.tenantId)?.name ?? "—"}</p>
-                  <p className="text-[11.5px] text-[var(--muted)]">ينتهي {dateShort(c.endDate)}</p>
-                </div>
-                <span className="shrink-0 text-[12.5px] font-extrabold tabular-nums text-[var(--gold-600)]">
-                  {num(Math.ceil(left / 86400000))} يومًا
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* ========================== إشغال الأدوار ========================== */}
       {floors.length > 0 && (
         <div className="card card-lg p-4">
@@ -243,17 +179,177 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ============================== الرسم ============================== */}
+      {/* =============================== الرسوم =============================== */}
       {allow("finance.view") && (
-        <div className="card card-lg p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[14px] font-extrabold">الدخل والمصروفات</p>
-            <Link href="/finances?tab=profit" className="text-[12px] font-bold text-[var(--primary)]">الأرباح ‹</Link>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="card card-lg p-4">
+            <p className="mb-2.5 text-[14px] font-extrabold">نسبة التحصيل — آخر ٦ أشهر</p>
+            <div className="flex items-end justify-between gap-1.5">
+              {trend.map((t) => (
+                <div key={t.period} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                  <span className="num text-[10.5px] font-bold text-[var(--ink-2)]">{Math.round(t.rate)}%</span>
+                  <span className="relative flex h-24 w-full max-w-[26px] items-end overflow-hidden rounded-md bg-[var(--surface-3)]">
+                    <span
+                      className="w-full rounded-md transition-[height] duration-700"
+                      style={{
+                        height: `${Math.max(3, t.rate)}%`,
+                        background: t.rate >= 95 ? "var(--ok)" : t.rate >= 60 ? "var(--primary)" : "var(--gold)",
+                      }}
+                    />
+                  </span>
+                  <span className="truncate text-[10px] font-semibold text-[var(--muted)]">
+                    {monthAr(t.period).split(" ")[0].slice(0, 4)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="t-xs mt-2.5 border-t border-[var(--line)] pt-2 text-[var(--muted)]">
+              تحصيل هذا الشهر {pct(k.collectionRate)} من {KWD(k.expectedThisMonth)}
+            </p>
           </div>
-          <BarChart
-            points={series.map((m) => ({ label: monthAr(m.period).split(" ")[0].slice(0, 4), a: m.income, b: m.expense }))}
-            aLabel="الدخل" bLabel="المصروفات"
-          />
+
+          <div className="card card-lg p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[14px] font-extrabold">الدخل والمصروفات</p>
+              <Link href="/finances?tab=expenses" className="text-[12px] font-bold text-[var(--primary)]">المصروفات ‹</Link>
+            </div>
+            <BarChart
+              points={series.map((m) => ({ label: monthAr(m.period).split(" ")[0].slice(0, 4), a: m.income, b: m.expense }))}
+              aLabel="الدخل" bLabel="المصروفات"
+            />
+          </div>
+
+          <div className="card card-lg p-4">
+            <p className="mb-2.5 text-[14px] font-extrabold">توزيع الوحدات</p>
+            <Donut
+              slices={[
+                { label: "مؤجرة", value: k.occupied - k.flaggedUnits > 0 ? k.occupied - k.flaggedUnits : k.occupied, color: "var(--ok)" },
+                { label: "شاغرة", value: k.vacant, color: "var(--gold)" },
+                ...(k.flaggedUnits > 0 ? [{ label: "عليها ملاحظة", value: k.flaggedUnits, color: "var(--danger)" }] : []),
+              ]}
+              center={`${num(k.totalUnits)}`}
+              sub="وحدة"
+            />
+          </div>
+
+          <div className="card card-lg p-4">
+            <p className="mb-2.5 text-[14px] font-extrabold">صافي الشهر</p>
+            <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--line)]">
+              {[
+                ["المحصَّل", k.collectedThisMonth, "var(--ok)"],
+                ["المصروفات", k.expensesThisMonth, "var(--gold-600)"],
+                ["الصافي", k.netThisMonth, k.netThisMonth >= 0 ? "var(--primary)" : "var(--danger)"],
+              ].map(([l, v, c]) => (
+                <div key={l as string} className="px-2 text-center">
+                  <p className="num text-[15px] font-bold leading-none" style={{ color: c as string }}>
+                    {amount(v as number)}<span className="text-[9.5px] font-semibold opacity-55"> د.ك</span>
+                  </p>
+                  <p className="t-xs mt-1 text-[var(--muted)]">{l as string}</p>
+                </div>
+              ))}
+            </div>
+            <p className="t-xs mt-3 border-t border-[var(--line)] pt-2 leading-relaxed text-[var(--muted)]">
+              الإيجار الشهري المتعاقد {KWD(k.monthlyRentRoll)} على {num(k.tenantsCount)} مستأجرًا.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* =========================== يحتاج انتباهك =========================== */}
+      {attention && (
+        <div className="card card-lg overflow-hidden">
+          <p className="px-4 pb-1 pt-3.5 text-[14px] font-extrabold">يحتاج انتباهك</p>
+          <div className="divide-y divide-[var(--line)]">
+            {allow("finance.view") && k.arrearsCount > 0 && (
+              <AlertRow
+                href="/finances?tab=sheet" icon="alert" tone="rose"
+                title={`${num(k.arrearsCount)} مستأجر لم يسدّد`}
+                right={<Money v={k.arrearsTotal} size="sm" tone="#b3303b" />}
+              />
+            )}
+            {allow("contracts.view") && expiring.length > 0 && (
+              <AlertRow
+                href="/finances?tab=contracts" icon="calendar" tone="gold"
+                title={`${num(expiring.length)} عقد يقارب على الانتهاء`}
+                right={<span className="text-[12px] font-bold text-[var(--gold-600)]">خلال {data.settings.contractAlertDays} يومًا</span>}
+              />
+            )}
+            {allow("flags.view") && k.flaggedUnits > 0 && (
+              <AlertRow
+                href="/flags" icon="alert" tone="navy"
+                title={`${num(k.flaggedUnits)} وحدة عليها ملاحظة`}
+                right={<span className="text-[12px] font-bold text-[var(--primary)]">عرض</span>}
+              />
+            )}
+          </div>
+
+          {allow("finance.view") && ar.length > 0 && (
+            <div className="border-t border-[var(--line)]">
+              <p className="px-4 pb-1 pt-2.5 text-[11.5px] font-bold text-[var(--muted)]">أعلى المتأخرات</p>
+              <ul className="divide-y divide-[var(--line)]">
+                {ar.map((a) => (
+                  <li key={a.contract.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--danger-050)] text-[11px] font-extrabold text-[#b3303b]">
+                      {a.unit?.number}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-bold">{a.tenant?.name ?? "—"}</p>
+                      <p className="text-[11.5px] text-[var(--muted)]">{monthsLabel(a.missing.length)}</p>
+                    </div>
+                    <Money v={a.amount} size="sm" className="shrink-0" tone="#b3303b" />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================== العقود التي تقارب على الانتهاء ==================== */}
+      {allow("contracts.view") && expiring.length > 0 && (
+        <div className="card card-lg p-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-[14px] font-extrabold">عقود تقارب على الانتهاء</p>
+            <Link href="/finances?tab=contracts" className="text-[12px] font-bold text-[var(--primary)]">الكل ‹</Link>
+          </div>
+          <ul className="divide-y divide-[var(--line)]">
+            {expiring.slice(0, 4).map(({ c, left }) => (
+              <li key={c.id} className="flex items-center gap-3 py-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--gold-050)] text-[11px] font-extrabold text-[var(--gold-600)]">
+                  {unitById.get(c.unitId)?.number}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold">{tenantById.get(c.tenantId)?.name ?? "—"}</p>
+                  <p className="text-[11.5px] text-[var(--muted)]">ينتهي {dateShort(c.endDate)}</p>
+                </div>
+                <span className="shrink-0 text-[12.5px] font-extrabold tabular-nums text-[var(--gold-600)]">
+                  {num(Math.ceil(left / 86400000))} يومًا
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ========================= مجموع كل العقارات ========================= */}
+      {data.buildings.length > 1 && (
+        <div className="card p-3.5">
+          <p className="mb-2 flex items-center gap-1.5 text-[12.5px] font-extrabold text-[var(--muted)]">
+            <Icon name="layers" size={14} /> كل العقارات ({num(data.buildings.length)})
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            {[
+              ["الوحدات", num(all.totalUnits)],
+              ["مؤجرة / شاغرة", `${num(all.occupied)} / ${num(all.vacant)}`],
+              ["دخل الشهر", KWD(all.collectedThisMonth)],
+              ["الصافي", KWD(all.netThisMonth)],
+            ].map(([l, v]) => (
+              <div key={l}>
+                <p className="num text-[13.5px] font-bold text-[var(--ink)]">{v}</p>
+                <p className="t-xs text-[var(--muted)]">{l}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

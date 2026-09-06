@@ -3,7 +3,7 @@
 import React, { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon, type IconName } from "./Icons";
-import { amount, monthAr } from "@/lib/format";
+import { MONTH_NAMES, amount, monthAr } from "@/lib/format";
 
 /* ================================ المبالغ ================================ */
 
@@ -111,28 +111,120 @@ export function Filters<T extends string>({
 /** مرادف — نفس شريط الفلاتر. */
 export const Segmented = Filters;
 
+/* ============================== أقسام الصفحة ============================== */
+
+/**
+ * شريط الأقسام الرئيسي داخل الصفحة — أكبر من شريط الفلاتر وأوضح،
+ * يلتفّ على سطرين في الجوال بدل التمرير الأفقي الذي يخفي بعض الأقسام.
+ */
+export function TabBar<T extends string>({
+  options, value, onChange,
+}: {
+  options: { value: T; label: string; icon?: IconName; count?: number }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={o.value}
+            onClick={() => onChange(o.value)}
+            aria-pressed={on}
+            className="flex min-w-[calc(33.333%-0.5rem)] flex-1 flex-col items-center justify-center gap-1 rounded-[10px] border px-2 py-2.5 transition active:scale-[.97]"
+            style={{
+              borderColor: on ? "var(--primary)" : "var(--line)",
+              background: on ? "var(--primary)" : "var(--surface)",
+              color: on ? "#fff" : "var(--ink-2)",
+              boxShadow: on ? "var(--sh-1)" : "none",
+            }}
+          >
+            {o.icon && <Icon name={o.icon} size={18} strokeWidth={on ? 2.1 : 1.8} />}
+            <span className="whitespace-nowrap text-[12.5px] font-bold leading-none">{o.label}</span>
+            {o.count !== undefined && (
+              <span className="num text-[10.5px] font-bold leading-none" style={{ opacity: on ? 0.75 : 0.5 }}>
+                {o.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ============================== منتقي الشهر ============================== */
 
 export function MonthPicker({
   value, onChange,
 }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(() => Number(value.slice(0, 4)));
+
+  useEffect(() => { if (open) setYear(Number(value.slice(0, 4))); }, [open, value]);
+
   const shift = (n: number) => {
     const [y, m] = value.split("-").map(Number);
     const d = new Date(y, m - 1 + n, 1);
     onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
+
+  const pick = (mi: number) => {
+    onChange(`${year}-${String(mi + 1).padStart(2, "0")}`);
+    setOpen(false);
+  };
+
   return (
-    <div className="inline-flex items-center overflow-hidden rounded-[9px] border border-[var(--line-strong)] bg-[var(--surface)]">
-      <button onClick={() => shift(1)} className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-2)]" aria-label="الشهر التالي">
-        <Icon name="chevronRight" size={15} />
-      </button>
-      <span className="min-w-[108px] border-x border-[var(--line)] px-2 py-1.5 text-center text-[13px] font-semibold">
-        {monthAr(value)}
-      </span>
-      <button onClick={() => shift(-1)} className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-2)]" aria-label="الشهر السابق">
-        <Icon name="chevronLeft" size={15} />
-      </button>
-    </div>
+    <>
+      <div className="inline-flex items-center overflow-hidden rounded-[9px] border border-[var(--line-strong)] bg-[var(--surface)]">
+        <button onClick={() => shift(1)} className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-2)]" aria-label="الشهر التالي">
+          <Icon name="chevronRight" size={15} />
+        </button>
+        <button
+          onClick={() => setOpen(true)}
+          className="flex min-w-[124px] items-center justify-center gap-1.5 border-x border-[var(--line)] px-2 py-1.5 text-[13px] font-semibold transition hover:bg-[var(--surface-2)]"
+        >
+          {monthAr(value)}
+          <Icon name="chevronDown" size={13} className="text-[var(--faint)]" />
+        </button>
+        <button onClick={() => shift(-1)} className="px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-2)]" aria-label="الشهر السابق">
+          <Icon name="chevronLeft" size={15} />
+        </button>
+      </div>
+
+      <Sheet open={open} onClose={() => setOpen(false)} title="اختر الشهر والسنة">
+        <div className="mb-3 flex items-center justify-center gap-3">
+          <button className="btn btn-icon btn-ghost" onClick={() => setYear((y) => y - 1)} aria-label="السنة السابقة">
+            <Icon name="chevronRight" size={16} />
+          </button>
+          <span className="num min-w-[70px] text-center text-[19px] font-bold">{year}</span>
+          <button className="btn btn-icon btn-ghost" onClick={() => setYear((y) => y + 1)} aria-label="السنة التالية">
+            <Icon name="chevronLeft" size={16} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {MONTH_NAMES.map((mn, i) => {
+            const on = value === `${year}-${String(i + 1).padStart(2, "0")}`;
+            return (
+              <button
+                key={mn}
+                onClick={() => pick(i)}
+                className="rounded-[10px] border px-2 py-3 text-[13px] font-bold transition"
+                style={{
+                  borderColor: on ? "var(--primary)" : "var(--line)",
+                  background: on ? "var(--primary)" : "var(--surface)",
+                  color: on ? "#fff" : "var(--ink-2)",
+                }}
+              >
+                {mn}
+              </button>
+            );
+          })}
+        </div>
+      </Sheet>
+    </>
   );
 }
 

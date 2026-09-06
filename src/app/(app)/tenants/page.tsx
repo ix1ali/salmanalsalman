@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, scope } from "@/lib/selectors";
-import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num } from "@/lib/format";
+import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num, thisPeriod } from "@/lib/format";
 import {
   Empty, Field, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, TextInput, useConfirm,
 } from "@/components/ui";
@@ -13,13 +13,13 @@ import DocsPanel from "@/components/DocsPanel";
 import { ContractForm, PaymentForm, TenantForm } from "@/components/forms";
 import { PrintOverlay, TenantStatementDoc, TenantsRegisterDoc } from "@/components/print";
 
-type Tab = "current" | "arrears" | "all";
+type Tab = "all" | "unpaid";
 
 export default function TenantsPage() {
   const { data, activeBuilding } = useStore();
   const { allow } = useAuth();
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<Tab>("current");
+  const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [printRegister, setPrintRegister] = useState(false);
@@ -38,6 +38,15 @@ export default function TenantsPage() {
     [s.contracts]
   );
 
+  // «لم يُسدَّد» = عقد ساري بلا دفعة مسجّلة لهذا الشهر — نفس تعريف الكشف المالي
+  const unpaidIds = useMemo(() => {
+    const p = thisPeriod();
+    const paid = new Set(s.payments.filter((x) => x.period === p).map((x) => x.contractId));
+    return new Set(
+      s.contracts.filter((c) => c.status === "active" && !paid.has(c.id)).map((c) => c.tenantId)
+    );
+  }, [s.contracts, s.payments]);
+
   const unitOf = useMemo(() => {
     const m = new Map<string, string>();
     s.contracts.filter((c) => c.status === "active").forEach((c) => {
@@ -50,8 +59,7 @@ export default function TenantsPage() {
   const list = useMemo(() => {
     const n = q.trim().toLowerCase();
     let base = activeBuilding === "all" ? data.tenants : data.tenants.filter((t) => s.tenantIds.has(t.id));
-    if (tab === "current") base = base.filter((t) => activeIds.has(t.id));
-    if (tab === "arrears") base = base.filter((t) => dueByTenant.has(t.id));
+    if (tab === "unpaid") base = base.filter((t) => unpaidIds.has(t.id));
     if (n) base = base.filter((t) =>
       t.name.toLowerCase().includes(n) || t.phone.includes(n) ||
       (t.civilId ?? "").includes(n) || (t.nationality ?? "").includes(n) ||
@@ -61,7 +69,7 @@ export default function TenantsPage() {
       const ua = unitOf.get(a.id) ?? "zz", ub = unitOf.get(b.id) ?? "zz";
       return ua.localeCompare(ub, "ar", { numeric: true });
     });
-  }, [data.tenants, s.tenantIds, activeBuilding, tab, q, activeIds, dueByTenant, unitOf]);
+  }, [data.tenants, s.tenantIds, activeBuilding, tab, q, unpaidIds, unitOf]);
 
   return (
     <div className="space-y-3">
@@ -90,9 +98,10 @@ export default function TenantsPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: "current", label: "الحاليون", count: activeIds.size },
-            ...(allow("finance.view") ? [{ value: "arrears" as const, label: "عليهم متأخرات", count: dueByTenant.size }] : []),
             { value: "all", label: "الكل", count: activeBuilding === "all" ? data.tenants.length : s.tenants.length },
+            ...(allow("finance.view")
+              ? [{ value: "unpaid" as const, label: `لم يُسدَّد ${monthAr(thisPeriod()).split(" ")[0]}`, count: unpaidIds.size }]
+              : []),
           ]}
         />
       </div>

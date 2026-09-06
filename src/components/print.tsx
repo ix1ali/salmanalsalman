@@ -8,7 +8,7 @@ import {
   KWD, amount, amountInWords, dateAr, dateShort, dinarsFils, expenseLabel,
   methodLabel, monthAr, num, pct,
 } from "@/lib/format";
-import type { Contract, Payment, Unit } from "@/lib/types";
+import type { AppData, Contract, Payment, Unit } from "@/lib/types";
 import { arrears, scope } from "@/lib/selectors";
 
 const INK = "#0b2545";
@@ -352,148 +352,205 @@ export interface ReceiptFields {
   notes?: string;
 }
 
+const RED = "#c00000";
+
 /**
- * وصل الإيجار بنفس صياغة نموذج المكتب حرفيًا
- * (تقرير «طباعة وصل ايجار» في قاعدة Access).
+ * وصل الإيجار — منقول عن النموذج المطبوع لدى المكتب كما هو:
+ * ترويسة ثلاثية، خانتا الفلس والدينار وخانة التاريخ، ثم جدول البنود
+ * بعناوينه العربية والإنجليزية، وتوقيع المستلم في الأسفل.
  */
-export function ReceiptSheet({ f }: { f: ReceiptFields }) {
+export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact?: boolean }) {
   const { data } = useStore();
   const { dinars, fils } = dinarsFils(f.amount);
 
+  const S = compact
+    ? { title: 15, org: 10.5, sub: 8, label: 9.5, val: 10.5, pad: "4px 7px", boxH: 25, boxW: 62, num: 13, sig: 9.5 }
+    : { title: 22, org: 14, sub: 10, label: 12.5, val: 13.5, pad: "8px 10px", boxH: 36, boxW: 92, num: 18, sig: 12.5 };
+
+  const bd = `1.4px solid ${INK}`;
+  const base: React.CSSProperties = { border: bd, padding: S.pad, color: INK, fontWeight: 700, fontSize: S.label };
+  const arCell: React.CSSProperties = { ...base, whiteSpace: "nowrap" };
+  const enCell: React.CSSProperties = { ...base, direction: "ltr", textAlign: "left", whiteSpace: "nowrap" };
+  const vCell: React.CSSProperties = { ...base, fontSize: S.val, color: NAVY, textAlign: "center" };
+  const box: React.CSSProperties = {
+    border: bd, minWidth: S.boxW, height: S.boxH, display: "inline-grid",
+    placeItems: "center", fontWeight: 800, fontSize: S.num, color: INK, padding: "0 6px",
+  };
+  const NB = " ";
+
   return (
-    <>
-      <div className="mb-6 text-center">
-        <div className="mb-2 flex items-center justify-center gap-3">
-          <Logo size={44} />
-          <div className="text-right">
-            <p className="text-[19px] font-extrabold" style={{ color: INK }}>عقار المالك / سلمان السلمان</p>
-            <p className="text-[11.5px]" style={{ color: MUTED }}>Real Estate / Salman AlSalman</p>
-          </div>
+    <div style={{ color: INK }}>
+      {/* ------------------------------ الترويسة ------------------------------ */}
+      <div className="grid grid-cols-3 items-start gap-3" style={{ marginBottom: compact ? 10 : 18 }}>
+        <div className="text-right">
+          <p style={{ fontSize: S.org, fontWeight: 800, lineHeight: 1.3 }}>{data.settings.orgName}</p>
+          <p style={{ fontSize: S.sub, color: MUTED }}>عقاري / {data.settings.ownerFullName}</p>
         </div>
-        <div className="mx-auto mt-3 inline-block rounded-lg px-8 py-1.5" style={{ background: NAVY }}>
-          <p className="text-[19px] font-extrabold text-white">وصل ايجار</p>
+        <div className="text-center">
+          <p style={{ fontSize: S.title, fontWeight: 800, color: RED, lineHeight: 1.15 }}>وصل ايجار</p>
+          <p style={{ fontSize: S.sub + 2, fontWeight: 700, direction: "ltr" }}>Rent Voucher</p>
+        </div>
+        <div className="text-left" dir="ltr">
+          <p style={{ fontSize: S.org - 1.5, fontWeight: 800, lineHeight: 1.3 }}>Salman AlSalman</p>
+          <p style={{ fontSize: S.sub, fontWeight: 700 }}>Real Estate</p>
+          <p style={{ fontSize: S.sub, color: MUTED }}>State of Kuwait</p>
         </div>
       </div>
 
-      <div className="mb-5 flex justify-between text-[13px]">
-        <Line k="رقم الوصل :" v={f.no} />
-        <Line k="التاريخ :" v={dateShort(f.date)} />
-        <Line k="اليوم :" v={dayName(f.date)} />
+      {/* --------------------------- المبلغ والتاريخ --------------------------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: compact ? 8 : 14 }}>
+        <span className="flex items-center gap-2">
+          <span className="num" style={{ ...box, minWidth: Math.round(S.boxW * 0.62) }}>{fils ? num(fils) : NB}</span>
+          <span style={{ fontSize: S.label, fontWeight: 700 }}>فلس</span>
+          <span className="num" style={box}>{f.amount ? num(dinars) : NB}</span>
+          <span style={{ fontSize: S.label, fontWeight: 700 }}>دينار</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="num" style={{ fontSize: S.num - 3, fontWeight: 800 }}>{f.date ? dateShort(f.date) : NB}</span>
+          <span style={{ ...box, minWidth: Math.round(S.boxW * 0.8), fontSize: S.label }}>التاريخ</span>
+        </span>
       </div>
 
-      <div className="space-y-4 text-[14px]">
-        <div className="flex items-baseline gap-2">
-          <span className="shrink-0 font-bold" style={{ color: INK }}>وصلنا من السيد / السادة</span>
-          <span className="flex-1 border-b border-dotted px-2 pb-1 font-extrabold" style={{ borderColor: INK, color: NAVY }}>
-            {f.from || " "}
-          </span>
-        </div>
+      {/* ------------------------------ بنود الوصل ------------------------------ */}
+      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "34%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "10.5%" }} />
+          <col style={{ width: "13.5%" }} />
+          <col style={{ width: "17%" }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td style={enCell}>Received From</td>
+            <td style={vCell} colSpan={4}>{f.from || NB}</td>
+            <td style={arCell}>وصلنا من السيد / السادة</td>
+          </tr>
+          <tr>
+            <td style={enCell}>The Sum of K.D</td>
+            <td style={vCell} colSpan={4}>
+              {f.amount
+                ? `${amountInWords(dinars)} دينار كويتي${fils ? ` و${num(fils)} فلسًا` : ""} فقط لاغير`
+                : NB}
+            </td>
+            <td style={arCell}>مبلغ وقدره</td>
+          </tr>
+          <tr>
+            <td style={enCell}>Bank</td>
+            <td style={vCell}>{f.bank || NB}</td>
+            <td style={{ ...arCell, fontSize: S.label - 1 }}>على بنك</td>
+            <td style={{ ...enCell, fontSize: S.label - 2, whiteSpace: "normal" }}>Cash / Cheque No</td>
+            <td style={vCell}>{f.method || NB}</td>
+            <td style={arCell}>نقدا / شيك رقم</td>
+          </tr>
+          <tr>
+            <td style={enCell}>Of Rent</td>
+            <td style={vCell} colSpan={4}>{f.unitNo || NB}</td>
+            <td style={arCell}>وذلك عن ايجار</td>
+          </tr>
+          <tr>
+            <td style={enCell}>Month Of</td>
+            <td style={vCell} colSpan={4}>{f.monthText || NB}</td>
+            <td style={arCell}>عن شهر</td>
+          </tr>
+          {f.notes && (
+            <tr>
+              <td style={enCell}>Notes</td>
+              <td style={{ ...vCell, color: INK }} colSpan={4}>{f.notes}</td>
+              <td style={arCell}>ملاحظات</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
 
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="shrink-0 font-bold" style={{ color: INK }}>مبلغ وقدره</span>
-          <span className="min-w-[120px] flex-1 border-b border-dotted px-2 pb-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
-            {amount(f.amount)}
-          </span>
-          <span className="shrink-0 font-bold" style={{ color: INK }}>دينار كويتي فقط لاغير</span>
-        </div>
-
-        <p className="rounded-lg px-3 py-2 text-[12.5px] font-bold" style={{ background: "#edf3fb", color: NAVY }}>
-          فقط {amountInWords(dinars)} دينارًا كويتيًا{fils ? ` و${num(fils)} فلسًا` : ""} لا غير.
+      {/* ------------------------------- التوقيع ------------------------------- */}
+      <div style={{ marginTop: compact ? 20 : 44 }}>
+        <p style={{ fontSize: S.sig, fontWeight: 700 }}>توقيع المستلم</p>
+        <p style={{ marginTop: compact ? 8 : 16, fontSize: S.sig, color: "#6f7f92", letterSpacing: 4 }}>
+          . . . . . . . . . . . . . . . . . . . . . .
         </p>
-
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
-          <span className="flex flex-1 items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>نقدا / شيك رقم</span>
-            <span className="min-w-[80px] flex-1 border-b border-dotted px-2 pb-1 font-bold" style={{ borderColor: INK, color: NAVY }}>
-              {f.method || " "}
-            </span>
-          </span>
-          <span className="flex flex-1 items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>على بنك</span>
-            <span className="min-w-[80px] flex-1 border-b border-dotted px-2 pb-1 font-bold" style={{ borderColor: INK, color: NAVY }}>
-              {f.bank || " "}
-            </span>
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
-          <span className="flex items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>وذلك عن ايجار شقة رقم</span>
-            <span className="min-w-[70px] border-b border-dotted px-2 pb-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
-              {f.unitNo || " "}
-            </span>
-          </span>
-          <span className="flex items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>الدور</span>
-            <span className="min-w-[80px] border-b border-dotted px-2 pb-1 text-center font-bold" style={{ borderColor: INK, color: NAVY }}>
-              {f.floor || " "}
-            </span>
-          </span>
-          <span className="flex flex-1 items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>عن شهر</span>
-            <span className="min-w-[90px] flex-1 border-b border-dotted px-2 pb-1 text-center font-bold" style={{ borderColor: INK, color: NAVY }}>
-              {f.monthText || " "}
-            </span>
-          </span>
-        </div>
-
-        {f.notes && (
-          <div className="flex items-baseline gap-2">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>ملاحظات</span>
-            <span className="flex-1 border-b border-dotted px-2 pb-1" style={{ borderColor: LINE, color: "#2a4361" }}>{f.notes}</span>
-          </div>
-        )}
       </div>
 
-      <div className="mt-14 text-left">
-        <p className="text-[13px] font-bold" style={{ color: INK }}>توقيع المستلم</p>
-        <div className="mr-auto mt-10 w-56 border-b" style={{ borderColor: INK }} />
-      </div>
-
-      <p className="mt-8 text-center text-[10.5px]" style={{ color: "#9fb0c4" }}>
-        {data.settings.orgName}
-      </p>
-    </>
+      {f.no && (
+        <p className="text-left" style={{ marginTop: 4, fontSize: S.sub, color: MUTED }}>
+          رقم الوصل <span className="num">{f.no}</span>
+        </p>
+      )}
+    </div>
   );
+}
+
+/** حقول وصل من دفعة مسجّلة في النظام. */
+export function receiptOfPayment(data: AppData, p: Payment): ReceiptFields {
+  const unit = data.units.find((u) => u.id === p.unitId);
+  const floor = data.floors.find((x) => x.id === unit?.floorId);
+  return {
+    no: p.receiptNo,
+    from: data.tenants.find((t) => t.id === p.tenantId)?.name ?? "",
+    amount: p.amount,
+    method: p.method === "cheque" ? (p.reference || "شيك") : methodLabel[p.method],
+    bank: p.bank ?? "",
+    unitNo: unit?.number ?? "",
+    floor: floor?.name ?? "",
+    monthText: monthAr(p.period),
+    date: p.paidAt,
+    notes: p.notes,
+  };
+}
+
+/**
+ * حقول وصل من عقد ساري — لوصل يُطبع قبل التحصيل ثم يُوزَّع على السكان،
+ * فتُترك خانة طريقة الدفع فارغة ليُكتب فيها باليد.
+ */
+export function receiptOfContract(data: AppData, c: Contract, period: string): ReceiptFields {
+  const unit = data.units.find((u) => u.id === c.unitId);
+  const floor = data.floors.find((x) => x.id === unit?.floorId);
+  return {
+    no: "",
+    from: data.tenants.find((t) => t.id === c.tenantId)?.name ?? "",
+    amount: c.rent,
+    method: "",
+    bank: "",
+    unitNo: unit?.number ?? "",
+    floor: floor?.name ?? "",
+    monthText: monthAr(period),
+    date: "",
+  };
 }
 
 /** الوصل معبَّأ من دفعة مسجّلة في النظام. */
 export function ReceiptDoc({ payment }: { payment: Payment }) {
   const { data } = useStore();
-  const tenant = data.tenants.find((t) => t.id === payment.tenantId);
-  const { unit, floor } = useUnitCtx(payment.unitId);
-  return (
-    <ReceiptSheet
-      f={{
-        no: payment.receiptNo,
-        from: tenant?.name ?? "",
-        amount: payment.amount,
-        method: payment.method === "cheque" ? (payment.reference || "شيك") : methodLabel[payment.method],
-        bank: payment.bank ?? "",
-        unitNo: unit?.number ?? "",
-        floor: floor?.name ?? "",
-        monthText: monthAr(payment.period),
-        date: payment.paidAt,
-        notes: payment.notes,
-      }}
-    />
-  );
+  return <ReceiptSheet f={receiptOfPayment(data, payment)} />;
 }
 
 /* ============================== طلب الإخلاء ============================== */
 
-/** إقرار إخلاء وتسليم العين المؤجرة — منقول من نموذج «طلب اخلا.doc». */
-export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenantId?: string; date?: string }) {
-  const { data } = useStore();
-  const tenant = data.tenants.find((t) => t.id === tenantId);
-  const { unit, floor, building } = useUnitCtx(unitId);
+/** حقول طلب الإخلاء — تُملأ من عقد مسجّل أو تُكتب يدويًا. */
+export interface EvictionFields {
+  tenantName: string;
+  civilId: string;
+  phone: string;
+  unitNo: string;
+  floor: string;
+  area: string;
+  block: string;
+  street: string;
+  parcel: string;
+  buildingNo: string;
+  date: string;
+}
 
+/** إقرار إخلاء وتسليم العين المؤجرة — منقول من نموذج «طلب اخلا.doc». */
+export function EvictionSheet({ f }: { f: EvictionFields }) {
+  const { data } = useStore();
   return (
     <>
       <LetterHead
         title="طلب إخلاء"
         en="Eviction Acknowledgement"
-        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>في الكويت — {dateShort(date)}</p>}
+        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>في الكويت — {dateShort(f.date)}</p>}
       />
 
       <p className="mb-4 text-[13.5px] font-extrabold" style={{ color: NAVY }}>
@@ -501,20 +558,19 @@ export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenant
       </p>
 
       <div className="mb-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
-        <Line k="أقر وأتعهد أنا :" v={tenant?.name} w="sm:col-span-2" />
-        <Line k="أحمل بطاقة مدنية رقم :" v={tenant?.civilId} />
-        <Line k="رقم الهاتف :" v={tenant?.phone} />
+        <Line k="أقر وأتعهد أنا :" v={f.tenantName} w="sm:col-span-2" />
+        <Line k="أحمل بطاقة مدنية رقم :" v={f.civilId} />
+        <Line k="رقم الهاتف :" v={f.phone} />
       </div>
 
       <p className="mb-4 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
-        إقرارًا نافيًا للجهالة وغير قابل للعدول بإخلاء العين المؤجرة رقم ( <b>{unit?.number}</b> )
-        الدور ( <b>{floor?.name}</b> ) بالعقار الكائن بمنطقة <b>{building?.area ?? "حولي الجنوبي"}</b>{" "}
-        <b>{building?.block ?? "قطعة 10"}</b> <b>{building?.street ?? "شارع موسى بن نصير"}</b>{" "}
-        <b>{building?.parcel ?? "قسيمة رقم 21/79"}</b> <b>{building?.buildingNo ?? "عمارة رقم 37"}</b>
+        إقرارًا نافيًا للجهالة وغير قابل للعدول بإخلاء العين المؤجرة رقم ( <b>{f.unitNo}</b> )
+        الدور ( <b>{f.floor}</b> ) بالعقار الكائن بمنطقة <b>{f.area}</b>{" "}
+        <b>{f.block}</b> <b>{f.street}</b> <b>{f.parcel}</b> <b>{f.buildingNo}</b>
       </p>
 
       <div className="mb-4">
-        <Line k="بتاريخ :" v={dateShort(date)} />
+        <Line k="بتاريخ :" v={dateShort(f.date)} />
       </div>
 
       <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
@@ -524,9 +580,9 @@ export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenant
       </p>
 
       <div className="grid gap-y-3 sm:w-1/2">
-        <Line k="الاسم :" v={tenant?.name} />
-        <Line k="الرقم المدني :" v={tenant?.civilId} />
-        <Line k="التاريخ :" v={dateShort(date)} />
+        <Line k="الاسم :" v={f.tenantName} />
+        <Line k="الرقم المدني :" v={f.civilId} />
+        <Line k="التاريخ :" v={dateShort(f.date)} />
         <Line k="التوقيع :" v="" />
       </div>
 
@@ -534,6 +590,31 @@ export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenant
         {data.settings.orgName} — {data.settings.ownerFullName}
       </p>
     </>
+  );
+}
+
+/** طلب الإخلاء معبَّأ من وحدة ومستأجر مسجّلَين. */
+export function EvictionDoc({ unitId, tenantId, date }: { unitId: string; tenantId?: string; date?: string }) {
+  const { data } = useStore();
+  const tenant = data.tenants.find((t) => t.id === tenantId);
+  const { unit, floor, building } = useUnitCtx(unitId);
+
+  return (
+    <EvictionSheet
+      f={{
+        tenantName: tenant?.name ?? "",
+        civilId: tenant?.civilId ?? "",
+        phone: tenant?.phone ?? "",
+        unitNo: unit?.number ?? "",
+        floor: floor?.name ?? "",
+        area: building?.area ?? "حولي الجنوبي",
+        block: building?.block ?? "قطعة 10",
+        street: building?.street ?? "شارع موسى بن نصير",
+        parcel: building?.parcel ?? "قسيمة رقم 21/79",
+        buildingNo: building?.buildingNo ?? "عمارة رقم 37",
+        date: date ?? "",
+      }}
+    />
   );
 }
 
@@ -808,124 +889,32 @@ export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
 
 /* ==================== طباعة الوصولات — وصلان في الصفحة ==================== */
 
-/** وصل مختصر بنصف صفحة A4، يُقصّ من المنتصف. */
-function HalfReceipt({ f }: { f: ReceiptFields }) {
-  const { data } = useStore();
-  const { dinars, fils } = dinarsFils(f.amount);
-  return (
-    <div style={{ padding: "10mm 8mm" }}>
-      <div className="mb-3 flex items-center justify-between border-b pb-2" style={{ borderColor: NAVY }}>
-        <div className="flex items-center gap-2">
-          <Logo size={30} />
-          <div>
-            <p className="text-[13px] font-extrabold" style={{ color: INK }}>عقار المالك / سلمان السلمان</p>
-            <p className="text-[9.5px]" style={{ color: MUTED }}>Real Estate / Salman AlSalman</p>
-          </div>
-        </div>
-        <div className="text-left">
-          <p className="text-[14px] font-extrabold" style={{ color: NAVY }}>وصل ايجار</p>
-          <p className="text-[10px]" style={{ color: MUTED }}>
-            {f.no ? `رقم ${f.no} · ` : ""}{dateShort(f.date)}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2 text-[12px]">
-        <div className="flex items-baseline gap-2">
-          <span className="shrink-0 font-bold" style={{ color: INK }}>وصلنا من السيد / السادة</span>
-          <span className="flex-1 border-b border-dotted px-1 font-extrabold" style={{ borderColor: INK, color: NAVY }}>{f.from}</span>
-        </div>
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="shrink-0 font-bold" style={{ color: INK }}>مبلغ وقدره</span>
-          <span className="min-w-[80px] border-b border-dotted px-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>
-            {amount(f.amount)}
-          </span>
-          <span className="shrink-0 font-bold" style={{ color: INK }}>دينار كويتي فقط لاغير</span>
-          <span className="text-[10.5px]" style={{ color: MUTED }}>
-            ({amountInWords(dinars)} دينارًا{fils ? ` و${num(fils)} فلسًا` : ""})
-          </span>
-        </div>
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
-          <span className="flex items-baseline gap-1.5">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>نقدا / شيك رقم</span>
-            <span className="min-w-[60px] border-b border-dotted px-1" style={{ borderColor: INK }}>{f.method}</span>
-          </span>
-          <span className="flex items-baseline gap-1.5">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>على بنك</span>
-            <span className="min-w-[70px] border-b border-dotted px-1" style={{ borderColor: INK }}>{f.bank || " "}</span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
-          <span className="flex items-baseline gap-1.5">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>وذلك عن ايجار شقة رقم</span>
-            <span className="min-w-[45px] border-b border-dotted px-1 text-center font-extrabold" style={{ borderColor: INK, color: NAVY }}>{f.unitNo}</span>
-          </span>
-          <span className="flex items-baseline gap-1.5">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>الدور</span>
-            <span className="min-w-[55px] border-b border-dotted px-1 text-center" style={{ borderColor: INK }}>{f.floor}</span>
-          </span>
-          <span className="flex flex-1 items-baseline gap-1.5">
-            <span className="shrink-0 font-bold" style={{ color: INK }}>عن شهر</span>
-            <span className="min-w-[70px] flex-1 border-b border-dotted px-1 text-center font-bold" style={{ borderColor: INK }}>{f.monthText}</span>
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-6 text-left">
-        <p className="text-[11px] font-bold" style={{ color: INK }}>توقيع المستلم</p>
-        <div className="mr-auto mt-6 w-40 border-b" style={{ borderColor: INK }} />
-      </div>
-      <p className="mt-2 text-center text-[9px]" style={{ color: "#9fb0c4" }}>{data.settings.orgName}</p>
-    </div>
-  );
-}
-
 /**
  * دفعة وصولات للطباعة: وصلان في كل صفحة A4 مع خط قصّ في المنتصف،
  * فتُقصّ الورقة نصفين ويُسلَّم كل نصف لشقة.
  */
-export function ReceiptsBatchDoc({ payments }: { payments: Payment[] }) {
-  const { data } = useStore();
-  const unitById = new Map(data.units.map((u) => [u.id, u]));
-  const floorById = new Map(data.floors.map((f) => [f.id, f]));
-  const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
-
-  const toFields = (p: Payment): ReceiptFields => {
-    const u = unitById.get(p.unitId);
-    return {
-      no: p.receiptNo,
-      from: tenantById.get(p.tenantId)?.name ?? "",
-      amount: p.amount,
-      method: p.method === "cheque" ? (p.reference || "شيك") : methodLabel[p.method],
-      bank: p.bank ?? "",
-      unitNo: u?.number ?? "",
-      floor: floorById.get(u?.floorId ?? "")?.name ?? "",
-      monthText: monthAr(p.period),
-      date: p.paidAt,
-      notes: p.notes,
-    };
-  };
-
-  const pages: Payment[][] = [];
-  for (let i = 0; i < payments.length; i += 2) pages.push(payments.slice(i, i + 2));
+export function ReceiptsBatchDoc({ items }: { items: ReceiptFields[] }) {
+  const pages: ReceiptFields[][] = [];
+  for (let i = 0; i < items.length; i += 2) pages.push(items.slice(i, i + 2));
 
   return (
     <>
       {pages.map((pair, i) => (
         <div key={i} style={{ breakAfter: i < pages.length - 1 ? "page" : "auto" }}>
-          <HalfReceipt f={toFields(pair[0])} />
-          <div
-            className="my-1 border-t border-dashed"
-            style={{ borderColor: "#b8c2cf", position: "relative" }}
-          >
+          <div style={{ minHeight: "118mm" }}>
+            <ReceiptSheet f={pair[0]} compact />
+          </div>
+          <div className="relative my-2 border-t border-dashed" style={{ borderColor: "#94a3b4" }}>
             <span
               className="absolute -top-2 right-1/2 translate-x-1/2 bg-white px-2 text-[9px]"
-              style={{ color: "#9fb0c4" }}
+              style={{ color: "#8b9bad" }}
             >
               ✂ يُقصّ هنا
             </span>
           </div>
-          {pair[1] ? <HalfReceipt f={toFields(pair[1])} /> : <div style={{ minHeight: "120mm" }} />}
+          <div style={{ minHeight: "118mm" }}>
+            {pair[1] && <ReceiptSheet f={pair[1]} compact />}
+          </div>
         </div>
       ))}
     </>

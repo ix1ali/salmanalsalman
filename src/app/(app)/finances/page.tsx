@@ -4,26 +4,27 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
-import { lastPeriods, scope } from "@/lib/selectors";
+import { scope } from "@/lib/selectors";
 import { markPaid, unmarkPaid } from "@/lib/payments";
 import {
   EXPENSE_ORDER, KWD, amount, dateShort, expenseLabel, methodLabel, monthAr, num, pct, thisPeriod,
 } from "@/lib/format";
 import {
-  Empty, Filters, Money, MonthPicker, PageHeader, Panel, Progress, Select, useConfirm,
+  Empty, Filters, Money, MonthPicker, PageHeader, Panel, Progress, Select, TabBar, useConfirm,
 } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import { ExpenseForm } from "@/components/forms";
 import IssueDoc from "@/components/IssueDoc";
 import {
-  CollectionSheetDoc, ContractDoc, PrintOverlay, ReceiptDoc, ReceiptsBatchDoc,
+  CollectionSheetDoc, ContractDoc, PrintOverlay, ReceiptSheet, ReceiptsBatchDoc,
+  receiptOfContract, receiptOfPayment, type ReceiptFields,
 } from "@/components/print";
 import type { Contract, Expense, ExpenseCategory, Payment } from "@/lib/types";
 
 type Tab = "sheet" | "receipts" | "contracts" | "expenses" | "issue";
 type Doc =
   | { k: "sheet" } | { k: "batch" }
-  | { k: "receipt"; p: Payment } | { k: "contract"; c: Contract };
+  | { k: "receipt"; f: ReceiptFields } | { k: "contract"; c: Contract };
 
 export default function FinancesPage() {
   const { data, update, activeBuilding } = useStore();
@@ -51,8 +52,8 @@ export default function FinancesPage() {
   const tenantById = useMemo(() => new Map(data.tenants.map((t) => [t.id, t])), [data.tenants]);
   const floorById = useMemo(() => new Map(data.floors.map((f) => [f.id, f])), [data.floors]);
 
-  /* ------------------------- كشف التحصيل بالأدوار ------------------------- */
-  const sheet = useMemo(() => {
+  /* ------------------ صفوف الشهر: كل عقد ساري ومعه حالة سداده ------------------ */
+  const groups = useMemo(() => {
     const paidMap = new Map(s.payments.filter((p) => p.period === period).map((p) => [p.contractId ?? p.unitId, p]));
     const floors = data.floors
       .filter((f) => activeBuilding === "all" || f.buildingId === activeBuilding)
@@ -70,41 +71,53 @@ export default function FinancesPage() {
       .filter((g) => g.rows.length);
   }, [s.contracts, s.payments, data.floors, activeBuilding, period, unitById, tenantById]);
 
+  const rows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+
   const totals = useMemo(() => {
-    const all = sheet.flatMap((g) => g.rows);
-    const due = all.reduce((a, r) => a + r.c.rent, 0);
-    const got = all.filter((r) => r.payment).reduce((a, r) => a + r.c.rent, 0);
-    return { due, got, left: Math.max(0, due - got), count: all.length, paid: all.filter((r) => r.payment).length };
-  }, [sheet]);
+    const due = rows.reduce((a, r) => a + r.c.rent, 0);
+    const got = rows.filter((r) => r.payment).reduce((a, r) => a + r.c.rent, 0);
+    return { due, got, left: Math.max(0, due - got), count: rows.length, paid: rows.filter((r) => r.payment).length };
+  }, [rows]);
 
   const shown = useMemo(
     () =>
-      sheet
+      groups
         .map((g) => ({
           ...g,
           rows: g.rows.filter((r) => (filter === "all" ? true : filter === "paid" ? !!r.payment : !r.payment)),
         }))
         .filter((g) => g.rows.length),
-    [sheet, filter]
+    [groups, filter]
   );
 
-  const toggle = (c: Contract, isPaid: boolean) => {
+  /* --------------------------- تأكيد السداد وإلغاؤه --------------------------- */
+  const toggle = async (c: Contract, payment: Payment | undefined) => {
+    const unitNo = unitById.get(c.unitId)?.number ?? "";
+    const name = tenantById.get(c.tenantId)?.name ?? "";
+    const ok = payment
+      ? await confirm("إلغاء تأكيد السداد", `سيُحذف وصل ${payment.receiptNo} لشهر ${monthAr(period)} — شقة ${unitNo}.`)
+      : await confirm(
+          "تأكيد السداد",
+          `تسجيل استلام إيجار ${monthAr(period)} من ${name} — شقة ${unitNo} بمبلغ ${KWD(c.rent)}.`,
+          false
+        );
+    if (!ok) return;
+
     update(
-      (d) => (isPaid ? unmarkPaid(d, c.id, period) : markPaid(d, c, period, user?.username ?? "—")),
+      (d) => (payment ? unmarkPaid(d, c.id, period) : markPaid(d, c, period, user?.username ?? "—")),
       {
-        action: isPaid ? "إلغاء تأكيد سداد" : "تأكيد سداد",
-        detail: `${unitById.get(c.unitId)?.number ?? ""} — ${monthAr(period)}`,
+        action: payment ? "إلغاء تأكيد سداد" : "تأكيد سداد",
+        detail: `${unitNo} — ${monthAr(period)}`,
         actor: user?.username,
       }
     );
-    toast(isPaid ? "تم إلغاء التأكيد" : "تم تأكيد السداد");
+    toast(payment ? "تم إلغاء التأكيد" : "تم تأكيد السداد");
   };
 
-  /* -------------------------------- وصولات -------------------------------- */
-  const receipts = useMemo(
-    () => s.payments.filter((p) => p.period === period).sort((a, b) =>
-      (unitById.get(a.unitId)?.number ?? "").localeCompare(unitById.get(b.unitId)?.number ?? "", "ar", { numeric: true })),
-    [s.payments, period, unitById]
+  /* -------- وصولات الشهر: لكل عقد وصل، سواء سُدِّد أو لم يُسدَّد بعد -------- */
+  const receiptItems = useMemo<ReceiptFields[]>(
+    () => rows.map((r) => (r.payment ? receiptOfPayment(data, r.payment) : receiptOfContract(data, r.c, period))),
+    [rows, data, period]
   );
 
   /* --------------------------------- عقود --------------------------------- */
@@ -127,38 +140,37 @@ export default function FinancesPage() {
   );
 
   const removeExpense = async (e: Expense) => {
-    if (!(await confirm("حذف المصروف", `سيتم حذف «${e.title}».`))) return;
+    if (!(await confirm("حذف المصروف", `سيتم حذف «${e.title}» بمبلغ ${KWD(e.amount)}.`))) return;
     update((d) => { d.expenses = d.expenses.filter((x) => x.id !== e.id); },
       { action: "حذف مصروف", detail: e.title, actor: user?.username });
+    toast("تم الحذف");
   };
-
-  const monthBar = (
-    <div className="flex items-center justify-between gap-2">
-      <MonthPicker value={period} onChange={setPeriod} />
-      {period !== thisPeriod() && (
-        <button className="btn btn-ghost btn-sm" onClick={() => setPeriod(thisPeriod())}>الشهر الحالي</button>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-3">
       {dialog}
       <PageHeader title="المالية" />
 
-      <Filters
+      <TabBar
         value={tab}
         onChange={setTab}
         options={[
-          { value: "sheet", label: "الكشف المالي" },
-          { value: "receipts", label: "الوصولات", count: receipts.length },
-          { value: "contracts", label: "العقود", count: contracts.length },
-          { value: "expenses", label: "المصروفات" },
-          ...(allow("receipts.create") ? [{ value: "issue" as const, label: "إصدار مستند" }] : []),
+          { value: "sheet", label: "الكشف المالي", icon: "checkCircle" },
+          { value: "receipts", label: "الوصولات", icon: "receipt", count: receiptItems.length },
+          { value: "contracts", label: "العقود", icon: "file", count: contracts.length },
+          { value: "expenses", label: "المصروفات", icon: "wallet" },
+          ...(allow("receipts.create") ? [{ value: "issue" as const, label: "إصدار مستند", icon: "print" as const }] : []),
         ]}
       />
 
-      {tab !== "issue" && monthBar}
+      {tab !== "issue" && (
+        <div className="flex items-center justify-between gap-2">
+          <MonthPicker value={period} onChange={setPeriod} />
+          {period !== thisPeriod() && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setPeriod(thisPeriod())}>الشهر الحالي</button>
+          )}
+        </div>
+      )}
 
       {/* ============================ الكشف المالي ============================ */}
       {tab === "sheet" && (
@@ -213,19 +225,23 @@ export default function FinancesPage() {
                   {g.rows.map((r) => {
                     const isPaid = !!r.payment;
                     return (
-                      <div key={r.c.id} className="row">
+                      <div
+                        key={r.c.id}
+                        className="row"
+                        style={isPaid ? { background: "var(--ok-050)" } : undefined}
+                      >
                         {allow("receipts.create") ? (
                           <button
-                            onClick={() => toggle(r.c, isPaid)}
-                            className="grid h-6 w-6 shrink-0 place-items-center rounded-[6px] border-2 transition"
+                            onClick={() => toggle(r.c, r.payment)}
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] border-2 transition active:scale-95"
                             style={{
                               borderColor: isPaid ? "var(--ok)" : "var(--line-strong)",
-                              background: isPaid ? "var(--ok)" : "transparent",
+                              background: isPaid ? "var(--ok)" : "#fff",
                               color: "#fff",
                             }}
                             aria-label={isPaid ? "إلغاء تأكيد السداد" : "تأكيد السداد"}
                           >
-                            {isPaid && <Icon name="check" size={14} strokeWidth={3} />}
+                            {isPaid && <Icon name="check" size={18} strokeWidth={3} />}
                           </button>
                         ) : (
                           <span className="dot shrink-0" style={{ background: isPaid ? "var(--ok)" : "var(--line-strong)" }} />
@@ -233,9 +249,12 @@ export default function FinancesPage() {
                         <span className="num min-w-[34px] shrink-0 text-[12.5px] font-bold text-[var(--ink-2)]">{r.unit?.number}</span>
                         <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{r.tenant?.name ?? "—"}</span>
                         <Money v={r.c.rent} size="sm" tone={isPaid ? "var(--ok)" : "var(--ink-2)"} className="shrink-0" />
-                        {isPaid && r.payment && allow("reports.view") && (
+                        {allow("reports.view") && (
                           <button
-                            onClick={() => setDoc({ k: "receipt", p: r.payment! })}
+                            onClick={() => setDoc({
+                              k: "receipt",
+                              f: r.payment ? receiptOfPayment(data, r.payment) : receiptOfContract(data, r.c, period),
+                            })}
                             className="btn btn-icon btn-ghost !border-transparent !bg-transparent !p-1 shrink-0 text-[var(--muted)]"
                             aria-label="طباعة الوصل"
                           >
@@ -262,33 +281,48 @@ export default function FinancesPage() {
       {/* ============================== الوصولات ============================== */}
       {tab === "receipts" && (
         <>
-          {receipts.length > 0 && allow("reports.view") && (
+          {receiptItems.length > 0 && allow("reports.view") && (
             <button className="btn btn-primary w-full" onClick={() => setDoc({ k: "batch" })}>
-              <Icon name="print" size={15} /> طباعة جميع الوصولات ({num(receipts.length)}) — وصلان في الصفحة
+              <Icon name="print" size={15} /> طباعة جميع وصولات {monthAr(period)} ({num(receiptItems.length)})
             </button>
           )}
+          <p className="t-xs px-1 text-[var(--muted)]">
+            لكل مستأجر وصل في هذا الشهر — سُدِّد أو لم يُسدَّد بعد. تُطبع الصفحة بوصلين ليُقصّ الورق نصفين.
+          </p>
 
-          {receipts.length ? (
+          {rows.length ? (
             <div className="panel">
-              {receipts.map((p) => (
-                <button key={p.id} onClick={() => setDoc({ k: "receipt", p })} className="row row-link">
-                  <span className="num min-w-[34px] shrink-0 text-[12.5px] font-bold text-[var(--ink-2)]">
-                    {unitById.get(p.unitId)?.number}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-semibold">{tenantById.get(p.tenantId)?.name ?? "—"}</span>
-                    <span className="t-xs block text-[var(--muted)]">
-                      {p.receiptNo} · {dateShort(p.paidAt)} · {methodLabel[p.method]}
+              {rows.map((r) => {
+                const isPaid = !!r.payment;
+                return (
+                  <button
+                    key={r.c.id}
+                    onClick={() => setDoc({
+                      k: "receipt",
+                      f: r.payment ? receiptOfPayment(data, r.payment) : receiptOfContract(data, r.c, period),
+                    })}
+                    className="row row-link"
+                  >
+                    <span className="num min-w-[34px] shrink-0 text-[12.5px] font-bold text-[var(--ink-2)]">
+                      {r.unit?.number}
                     </span>
-                  </span>
-                  <Money v={p.amount} size="sm" tone="var(--ok)" className="shrink-0" />
-                  <Icon name="print" size={14} className="shrink-0 text-[var(--faint)]" />
-                </button>
-              ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-semibold">{r.tenant?.name ?? "—"}</span>
+                      <span className="t-xs block text-[var(--muted)]">
+                        {isPaid
+                          ? `${r.payment!.receiptNo} · ${dateShort(r.payment!.paidAt)} · ${methodLabel[r.payment!.method]}`
+                          : "لم يُسدَّد بعد — وصل للتوزيع"}
+                      </span>
+                    </span>
+                    <Money v={r.c.rent} size="sm" tone={isPaid ? "var(--ok)" : "var(--ink-2)"} className="shrink-0" />
+                    <Icon name="print" size={14} className="shrink-0 text-[var(--faint)]" />
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="card">
-              <Empty icon="receipt" title={`لا توجد وصولات في ${monthAr(period)}`} body="أكّد السداد من الكشف المالي لتصدر الوصولات." />
+              <Empty icon="receipt" title={`لا توجد عقود سارية في ${monthAr(period)}`} />
             </div>
           )}
         </>
@@ -387,14 +421,14 @@ export default function FinancesPage() {
       </PrintOverlay>
 
       <PrintOverlay open={doc?.k === "batch"} onClose={() => setDoc(null)} fileTitle={`وصولات ${monthAr(period)}`}>
-        <ReceiptsBatchDoc payments={receipts} />
+        <ReceiptsBatchDoc items={receiptItems} />
       </PrintOverlay>
 
       <PrintOverlay
         open={doc?.k === "receipt"} onClose={() => setDoc(null)}
-        fileTitle={doc?.k === "receipt" ? `وصل ${doc.p.receiptNo}` : ""}
+        fileTitle={doc?.k === "receipt" ? `وصل — ${doc.f.from}` : ""}
       >
-        {doc?.k === "receipt" && <ReceiptDoc payment={doc.p} />}
+        {doc?.k === "receipt" && <ReceiptSheet f={doc.f} />}
       </PrintOverlay>
 
       <PrintOverlay
