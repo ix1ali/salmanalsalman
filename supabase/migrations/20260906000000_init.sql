@@ -322,7 +322,7 @@ begin
                            'payments','expenses','docs','memos','audit_log','settings'] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);
-    exception when duplicate_object then null;
+    exception when others then null;   -- الجدول مُضاف مسبقًا أو النشر غير موجود
     end;
   end loop;
 end $$;
