@@ -10,6 +10,9 @@
 
 create extension if not exists pgcrypto with schema extensions;
 
+-- pgcrypto قد يكون في extensions أو public حسب عمر المشروع، فنشمل الاثنين
+set search_path = public, extensions;
+
 -- ============================================================================
 --  1) الجداول
 -- ============================================================================
@@ -384,7 +387,7 @@ begin
     confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     '00000000-0000-0000-0000-000000000000', new_id, 'authenticated', 'authenticated',
-    mail, extensions.crypt(p_password, extensions.gen_salt('bf')), now(),
+    mail, crypt(p_password, gen_salt('bf')), now(),
     now(), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
     '', '', '', ''
   );
@@ -414,7 +417,7 @@ begin
   if not public.is_admin() then raise exception 'not-allowed'; end if;
   if length(p_password) < 8 then raise exception 'كلمة المرور قصيرة'; end if;
   update auth.users
-     set encrypted_password = extensions.crypt(p_password, extensions.gen_salt('bf')),
+     set encrypted_password = crypt(p_password, gen_salt('bf')),
          updated_at = now()
    where id = p_user;
 
@@ -477,7 +480,7 @@ begin
     confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     '00000000-0000-0000-0000-000000000000', new_id, 'authenticated', 'authenticated',
-    mail, extensions.crypt('Aa112233@', extensions.gen_salt('bf')), now(),
+    mail, crypt('Aa112233@', gen_salt('bf')), now(),
     now(), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
     '', '', '', ''
   );
