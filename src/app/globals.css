@@ -80,9 +80,13 @@ body {
 }
 
 /* سلّم خطوط صارم — كل عنوان في النظام يأخذ أحد هذه المقاسات */
-h1, .t-display { font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.015em; }
-h2, .t-title   { font-size: 17px; line-height: 1.3;  font-weight: 700; letter-spacing: -.01em; }
-h3, .t-section { font-size: 14.5px; line-height: 1.4; font-weight: 700; }
+h1, h2, h3, .t-display, .t-title, .t-section, .display {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+}
+h1, .t-display { font-size: 22px; line-height: 1.3; font-weight: 800; letter-spacing: -.01em; }
+h2, .t-title   { font-size: 17px; line-height: 1.35; font-weight: 800; }
+h3, .t-section { font-size: 14.5px; line-height: 1.45; font-weight: 800; }
+.display { font-weight: 800; }
 .t-body        { font-size: 14px; line-height: 1.55; }
 .t-sm          { font-size: 12.5px; line-height: 1.45; }
 .t-xs          { font-size: 11.5px; line-height: 1.4; }

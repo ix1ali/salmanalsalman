@@ -14,7 +14,7 @@ import {
 import { BarChart } from "@/components/Charts";
 import { Icon } from "@/components/Icons";
 import { ExpenseForm, PaymentForm } from "@/components/forms";
-import { ManualContract, ManualReceipt } from "@/components/ManualDocs";
+import IssueDoc from "@/components/IssueDoc";
 import type { Expense, ExpenseCategory } from "@/lib/types";
 
 type Tab = "collect" | "expenses" | "profit" | "arrears" | "forms";
@@ -145,7 +145,7 @@ export default function FinancesPage() {
           { value: "expenses", label: "المصروفات" },
           { value: "profit", label: "الأرباح" },
           { value: "arrears", label: "لم يتم الدفع", count: ar.length },
-          ...(allow("receipts.create") ? [{ value: "forms" as const, label: "نماذج يدوية" }] : []),
+          ...(allow("receipts.create") ? [{ value: "forms" as const, label: "إصدار مستند" }] : []),
         ]}
       />
 
@@ -463,17 +463,8 @@ export default function FinancesPage() {
         </>
       )}
 
-      {/* ============================ نماذج يدوية ============================ */}
-      {tab === "forms" && allow("receipts.create") && (
-        <div className="space-y-3">
-          <p className="rounded-xl bg-[var(--surface-2)] p-3 text-[12.5px] leading-relaxed text-[var(--muted)]">
-            نماذج تكتب بياناتها بنفسك وتطبعها مباشرة — للحالات الخارجة عن سجل النظام.
-            أما وصولات وعقود المستأجرين المسجّلين فتُطبع من قسم <b className="text-[var(--ink)]">الطباعة</b>.
-          </p>
-          <ManualReceipt />
-          <ManualContract />
-        </div>
-      )}
+      {/* =========================== إصدار مستند =========================== */}
+      {tab === "forms" && allow("receipts.create") && <IssueDoc />}
 
       {payFor && (
         <PaymentForm open onClose={() => setPayFor(null)} presetContractId={payFor.contractId} presetPeriod={payFor.period} />
