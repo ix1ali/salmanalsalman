@@ -7,10 +7,10 @@ import { useToast } from "@/components/Toast";
 import { scope } from "@/lib/selectors";
 import { markPaid, unmarkPaid } from "@/lib/payments";
 import {
-  EXPENSE_ORDER, KWD, amount, dateShort, expenseLabel, methodLabel, monthAr, num, pct, thisPeriod,
+  EXPENSE_ORDER, KWD, amount, dateShort, expenseLabel, methodLabel, monthAr, num, thisPeriod,
 } from "@/lib/format";
 import {
-  Empty, Filters, Money, MonthPicker, PageHeader, Panel, Progress, Select, TabBar, useConfirm,
+  Empty, Money, MonthPicker, Panel, Select, TabBar, useConfirm,
 } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import { ExpenseForm } from "@/components/forms";
@@ -149,15 +149,14 @@ export default function FinancesPage() {
   return (
     <div className="space-y-3">
       {dialog}
-      <PageHeader title="المالية" />
 
       <TabBar
         value={tab}
         onChange={setTab}
         options={[
           { value: "sheet", label: "الكشف المالي", icon: "checkCircle" },
-          { value: "receipts", label: "الوصولات", icon: "receipt", count: receiptItems.length },
-          { value: "contracts", label: "العقود", icon: "file", count: contracts.length },
+          { value: "receipts", label: "الوصولات", icon: "receipt" },
+          { value: "contracts", label: "العقود", icon: "file" },
           { value: "expenses", label: "المصروفات", icon: "wallet" },
           ...(allow("receipts.create") ? [{ value: "issue" as const, label: "إصدار مستند", icon: "print" as const }] : []),
         ]}
@@ -166,54 +165,59 @@ export default function FinancesPage() {
       {tab !== "issue" && (
         <div className="flex items-center justify-between gap-2">
           <MonthPicker value={period} onChange={setPeriod} />
-          {period !== thisPeriod() && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setPeriod(thisPeriod())}>الشهر الحالي</button>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {period !== thisPeriod() && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setPeriod(thisPeriod())}>هذا الشهر</button>
+            )}
+            {tab === "sheet" && allow("reports.view") && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setDoc({ k: "sheet" })}>
+                <Icon name="print" size={13} /> طباعة الكشف
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* ============================ الكشف المالي ============================ */}
       {tab === "sheet" && (
         <>
+          {/* الأرقام الثلاثة هي الفلتر نفسه — اضغط أيًّا منها لتصفية القائمة */}
           <Panel flush>
-            <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--line)] border-b border-[var(--line)]">
-              {[
-                ["المستحق", totals.due, "var(--ink)"],
-                ["المحصَّل", totals.got, "var(--ok)"],
-                ["المتبقي", totals.left, totals.left ? "var(--danger)" : "var(--muted)"],
-              ].map(([l, v, c]) => (
-                <div key={l as string} className="px-2 py-2.5 text-center">
-                  <p className="num text-[16px] font-bold leading-none" style={{ color: c as string }}>
-                    {amount(v as number)}<span className="text-[9.5px] font-semibold opacity-55"> د.ك</span>
-                  </p>
-                  <p className="t-xs mt-1 text-[var(--muted)]">{l as string}</p>
-                </div>
-              ))}
-            </div>
-            <div className="px-3.5 py-2.5">
-              <Progress value={totals.due ? (totals.got / totals.due) * 100 : 0} tone={totals.left ? "gold" : "green"} height={6} />
-              <p className="t-xs mt-1.5 text-[var(--muted)]">
-                سُدِّدت <b className="text-[var(--ink-2)]">{num(totals.paid)}</b> وحدة من {num(totals.count)} · {pct(totals.due ? (totals.got / totals.due) * 100 : 0)}
-              </p>
+            <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--line)]">
+              {([
+                ["all", "المستحق", totals.due, "var(--ink)"],
+                ["paid", "المحصَّل", totals.got, "var(--ok)"],
+                ["unpaid", "المتبقي", totals.left, totals.left ? "var(--danger)" : "var(--muted)"],
+              ] as const).map(([key, label, value, color]) => {
+                const on = filter === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className="relative px-2 py-3 text-center transition"
+                    style={{ background: on ? "var(--surface-2)" : "transparent" }}
+                  >
+                    <p className="num text-[16px] font-bold leading-none" style={{ color }}>
+                      {amount(value)}<span className="text-[9.5px] font-semibold opacity-55"> د.ك</span>
+                    </p>
+                    <p className="t-xs mt-1" style={{ color: on ? "var(--ink)" : "var(--muted)", fontWeight: on ? 700 : 400 }}>
+                      {label}
+                    </p>
+                    {on && <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: "var(--primary)" }} />}
+                  </button>
+                );
+              })}
             </div>
           </Panel>
 
-          <div className="flex items-center justify-between gap-2">
-            <Filters
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "unpaid", label: "لم يُسدَّد", count: totals.count - totals.paid },
-                { value: "paid", label: "سُدِّد", count: totals.paid },
-                { value: "all", label: "الكل", count: totals.count },
-              ]}
-            />
-            {allow("reports.view") && (
-              <button className="btn btn-ghost btn-sm shrink-0" onClick={() => setDoc({ k: "sheet" })}>
-                <Icon name="print" size={13} /> طباعة الكشف
-              </button>
-            )}
-          </div>
+          <p className="t-xs px-1 text-[var(--muted)]">
+            {filter === "unpaid" ? "لم يُسدَّد" : filter === "paid" ? "سُدِّد" : "كل الوحدات"}
+            {" · "}
+            <b className="text-[var(--ink-2)]">
+              {num(filter === "paid" ? totals.paid : filter === "unpaid" ? totals.count - totals.paid : totals.count)}
+            </b>{" "}
+            من {num(totals.count)} وحدة
+          </p>
 
           {shown.length ? (
             <div className="panel">

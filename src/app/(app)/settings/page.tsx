@@ -110,7 +110,7 @@ export default function SettingsPage() {
           title="قواعد العقود والتحصيل"
           action={dirty ? <button className="btn btn-primary btn-sm" onClick={saveSettings}>حفظ</button> : undefined}
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Field label="يوم استحقاق الإيجار" hint="حسب العقد: قبل يوم 5">
               <TextInput type="number" min={1} max={28} value={org.dueDay} onChange={(e) => set("dueDay", +e.target.value)} />
             </Field>
@@ -241,15 +241,12 @@ export default function SettingsPage() {
         </p>
       </Panel>
 
-      {/* الأمان */}
-      <Panel title="الأمان">
-        <KeyVal k="تشفير كلمات المرور" v={cloud.on ? "bcrypt على الخادم — لا تُحفظ ولا تُرسل كنص" : "PBKDF2-SHA256 · 150,000 دورة"} />
-        {cloud.on && <KeyVal k="حماية البيانات" v="صلاحيات على مستوى الصف (RLS) داخل قاعدة البيانات" />}
-        {cloud.on && <KeyVal k="الاتصال" v="TLS مع سياسة أمن محتوى صارمة" />}
-        <KeyVal k="الإيقاف بعد المحاولات الفاشلة" v="خمس محاولات ← إيقاف 90 ثانية" />
-        <KeyVal k="الخروج التلقائي عند الخمول" v="12 ساعة" />
-        <KeyVal k="سجل العمليات" v="كل إضافة وتعديل وحذف مقيّدة باسم فاعلها ووقتها" />
-      </Panel>
+      <p className="t-xs flex items-center justify-center gap-1.5 py-1 text-center text-[var(--muted)]">
+        <Icon name="shield" size={13} />
+        {cloud.on
+          ? "الصلاحيات محفوظة داخل قاعدة البيانات · خروج تلقائي بعد ١٢ ساعة خمول"
+          : "كلمات المرور مجزّأة · خروج تلقائي بعد ١٢ ساعة خمول"}
+      </p>
 
       <p className="t-xs pb-2 text-center text-[var(--faint)]">
         {data.settings.orgName} · الإصدار 1.0
