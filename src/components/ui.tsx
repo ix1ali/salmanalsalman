@@ -285,8 +285,13 @@ export function SearchBox({
 /* ================================ النوافذ ================================ */
 
 export function Sheet({
-  open, onClose, title, children, footer, wide,
-}: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer?: React.ReactNode; wide?: boolean }) {
+  open, onClose, title, children, footer, wide, center,
+}: {
+  open: boolean; onClose: () => void; title: string;
+  children: React.ReactNode; footer?: React.ReactNode; wide?: boolean;
+  /** يظهر في منتصف الشاشة حتى على الجوال بدل الالتصاق بالحافة السفلى. */
+  center?: boolean;
+}) {
   const id = useId();
   useEffect(() => {
     if (!open) return;
@@ -305,10 +310,15 @@ export function Sheet({
   // بوابة إلى body: الشريط العلوي يستخدم backdrop-filter وهو ينشئ حاوية
   // جديدة للعناصر الثابتة، فكانت النوافذ تُقصّ خارج حدود الشاشة.
   return createPortal(
-    <div className="fixed inset-0 z-[150] flex items-end justify-center no-print sm:items-center" role="dialog" aria-modal="true" aria-labelledby={id}>
-      <div className="anim-fade absolute inset-0 bg-[#0b1a2c]/45" onClick={onClose} />
+    <div
+      className={`fixed inset-0 z-[150] flex justify-center p-3 no-print sm:items-center sm:p-4 ${center ? "items-center" : "items-end"}`}
+      role="dialog" aria-modal="true" aria-labelledby={id}
+    >
+      <div className="anim-fade absolute inset-0 bg-[#07302e]/45" onClick={onClose} />
       <div
-        className={`anim-sheet relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--surface)] shadow-[var(--sh-3)] sm:anim-pop sm:max-h-[88dvh] sm:rounded-xl ${wide ? "sm:max-w-3xl" : "sm:max-w-lg"}`}
+        // الحافة السفلى للجوال: نرفع اللوح عن شريط الإيماءات فتبقى آخر خياراته واضحة
+        style={{ marginBottom: center ? undefined : "env(safe-area-inset-bottom)" }}
+        className={`${center ? "anim-pop" : "anim-sheet"} relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-[var(--sh-3)] sm:anim-pop sm:mb-0 sm:max-h-[88dvh] sm:rounded-xl ${wide ? "sm:max-w-3xl" : "sm:max-w-lg"}`}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5">
           <h3 id={id} className="t-title truncate">{title}</h3>

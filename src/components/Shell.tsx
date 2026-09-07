@@ -278,29 +278,29 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="الأقسام">
-        <div className="-mx-4 -my-3.5">
-          {groups.map((g) => {
-            const items = g.items.filter((n) => rest.some((r) => r.href === n.href));
-            if (!items.length) return null;
-            return (
-              <div key={g.label}>
-                <p className="bg-[var(--surface-2)] px-4 py-1.5 text-[10.5px] font-bold text-[var(--faint)]">{g.label}</p>
-                {items.map((n) => (
-                  <Link key={n.href} href={n.href} className="row row-link">
-                    <Icon name={n.icon} size={18} className="shrink-0 text-[var(--muted)]" />
-                    <span className="flex-1 text-[13.5px] font-semibold">{n.label}</span>
-                    {n.href === "/flags" && flagged > 0 && (
-                      <span className="num rounded bg-[var(--danger-050)] px-1.5 text-[11px] font-bold text-[var(--danger)]">{flagged}</span>
-                    )}
-                    <Icon name="chevronLeft" size={15} className="text-[var(--faint)]" />
-                  </Link>
-                ))}
-              </div>
-            );
-          })}
+      {/* المزيد: بطاقات في منتصف الشاشة، بعيدة عن حافة الجهاز */}
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="الأقسام" center>
+        <div className="grid grid-cols-3 gap-2">
+          {rest.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className="relative flex flex-col items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-2 py-3.5 text-center transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)] active:scale-95"
+            >
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--primary-050)] text-[var(--primary)]">
+                <Icon name={n.icon} size={20} />
+              </span>
+              <span className="text-[12px] font-bold text-[var(--ink-2)]">{n.label}</span>
+              {n.href === "/flags" && flagged > 0 && (
+                <span className="num absolute left-2 top-2 rounded-md bg-[var(--danger-050)] px-1.5 text-[11px] font-bold text-[var(--danger)]">
+                  {flagged}
+                </span>
+              )}
+            </Link>
+          ))}
         </div>
       </Sheet>
+
     </div>
   );
 }
