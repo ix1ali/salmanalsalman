@@ -87,9 +87,9 @@ export function Icon({
 export function Logo({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="44" height="44" rx="12" fill="#17324e" />
-      <path d="M14 35V18.5L24 12l10 6.5V35" stroke="#b08d57" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
-      <path d="M10.5 35h27" stroke="#b08d57" strokeWidth="2.6" strokeLinecap="round" />
+      <rect x="2" y="2" width="44" height="44" rx="12" fill="#0f5b57" />
+      <path d="M14 35V18.5L24 12l10 6.5V35" stroke="#d2952f" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M10.5 35h27" stroke="#d2952f" strokeWidth="2.6" strokeLinecap="round" />
       <rect x="19" y="21" width="4" height="4" rx="1" fill="#fff" />
       <rect x="25" y="21" width="4" height="4" rx="1" fill="#fff" />
       <rect x="19" y="28" width="4" height="4" rx="1" fill="#fff" opacity=".55" />

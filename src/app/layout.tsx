@@ -18,10 +18,22 @@ const display = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "إدارة العمارات | إدارة عقار سلمان السلمان",
+  metadataBase: new URL("https://salmanalsalman.app"),
+  title: "إدارة عقار سلمان السلمان",
   description: "نظام متكامل لإدارة العمارات والشقق والمستأجرين والعقود والإيجارات في الكويت.",
-  applicationName: "إدارة العمارات",
-  appleWebApp: { capable: true, title: "إدارة العمارات", statusBarStyle: "default" },
+  applicationName: "عقار السلمان",
+  appleWebApp: { capable: true, title: "عقار السلمان", statusBarStyle: "default" },
+  // معاينة الرابط عند إرساله في واتساب أو غيره
+  openGraph: {
+    type: "website",
+    siteName: "إدارة عقار سلمان السلمان",
+    title: "إدارة عقار سلمان السلمان",
+    description: "العمارات والشقق والمستأجرون والعقود والإيجارات في مكان واحد.",
+    locale: "ar_KW",
+    url: "/",
+  },
+  twitter: { card: "summary_large_image", title: "إدارة عقار سلمان السلمان" },
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
