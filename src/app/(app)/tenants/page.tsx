@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { arrears, scope } from "@/lib/selectors";
 import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num, thisPeriod } from "@/lib/format";
 import {
-  Empty, Field, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, TextInput, useConfirm,
+  Empty, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, useConfirm,
 } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
@@ -30,8 +30,6 @@ export default function TenantsPage() {
   }, []);
 
   const s = useMemo(() => scope(data, activeBuilding), [data, activeBuilding]);
-  const ar = useMemo(() => arrears(data, s), [data, s]);
-  const dueByTenant = useMemo(() => new Map(ar.map((a) => [a.contract.tenantId, a])), [ar]);
 
   const activeIds = useMemo(
     () => new Set(s.contracts.filter((c) => c.status === "active").map((c) => c.tenantId)),
@@ -47,6 +45,7 @@ export default function TenantsPage() {
     );
   }, [s.contracts, s.payments]);
 
+  /** لكل مستأجر: رقم شقته وقيمة إيجارها — وهذا كل ما تعرضه القائمة. */
   const unitOf = useMemo(() => {
     const m = new Map<string, string>();
     s.contracts.filter((c) => c.status === "active").forEach((c) => {
@@ -55,6 +54,12 @@ export default function TenantsPage() {
     });
     return m;
   }, [s.contracts, data.units]);
+
+  const rentOf = useMemo(() => {
+    const m = new Map<string, number>();
+    s.contracts.filter((c) => c.status === "active").forEach((c) => m.set(c.tenantId, c.rent));
+    return m;
+  }, [s.contracts]);
 
   const list = useMemo(() => {
     const n = q.trim().toLowerCase();
@@ -107,27 +112,26 @@ export default function TenantsPage() {
       </div>
 
       {list.length ? (
-        <div className="panel">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((t) => {
             const unit = unitOf.get(t.id);
-            const due = dueByTenant.get(t.id);
+            const rent = rentOf.get(t.id);
             return (
-              <button key={t.id} onClick={() => setOpenId(t.id)} className="row row-link">
-                <span className="num grid h-8 w-9 shrink-0 place-items-center rounded-md bg-[var(--surface-3)] text-[11.5px] font-bold text-[var(--ink-2)]">
+              <button
+                key={t.id}
+                onClick={() => setOpenId(t.id)}
+                className="card flex items-center gap-3 p-3 text-right transition hover:border-[var(--line-strong)] hover:shadow-[var(--sh-1)] active:scale-[.99]"
+              >
+                <span className="num grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--primary-050)] text-[13px] font-bold text-[var(--primary)]">
                   {unit ?? "—"}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] font-semibold">{t.name}</span>
-                  <span className="t-xs block truncate text-[var(--muted)]">
-                    {t.nationality || "—"}{t.workplace ? ` · ${t.workplace}` : ""}
+                  <span className="block truncate text-[14px] font-bold leading-tight">{t.name}</span>
+                  <span className="num t-xs mt-1 block text-[var(--muted)]">
+                    {rent !== undefined ? KWD(rent) : "بلا عقد ساري"}
                   </span>
                 </span>
-                {due ? (
-                  <Money v={due.amount} size="sm" tone="var(--danger)" className="shrink-0" />
-                ) : (
-                  <span className="num t-xs shrink-0 text-[var(--muted)]" dir="ltr">{t.phone}</span>
-                )}
-                <Icon name="chevronLeft" size={14} className="shrink-0 text-[var(--faint)]" />
+                <Icon name="chevronLeft" size={15} className="shrink-0 text-[var(--faint)]" />
               </button>
             );
           })}
