@@ -4,23 +4,40 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { tenantOfUnit } from "@/lib/selectors";
-import { num } from "@/lib/format";
+import { KWD, num, pct } from "@/lib/format";
 import { Empty, PageHeader, SearchBox, Sheet } from "@/components/ui";
-import { Icon } from "@/components/Icons";
+import { Icon, type IconName } from "@/components/Icons";
 import UnitSheet from "@/components/UnitSheet";
 import { BulkUnitsForm, FloorForm, UnitForm } from "@/components/forms";
 import type { Unit } from "@/lib/types";
 
 type Filter = "all" | "occupied" | "vacant" | "flagged";
 
-/** ألوان حالة الوحدة داخل مخطط العمارة. */
-const TONE = {
-  occupied: { bg: "var(--primary-050)", fg: "var(--primary-700)", bd: "transparent" },
-  vacant:   { bg: "var(--gold-050)",    fg: "var(--gold-600)",    bd: "var(--gold)" },
-  flagged:  { bg: "var(--danger-050)",  fg: "var(--danger)",      bd: "var(--danger)" },
+const STATE = {
+  occupied: { label: "مؤجرة", fg: "var(--ok)", bg: "var(--ok-050)" },
+  vacant:   { label: "شاغرة", fg: "var(--gold-600)", bg: "var(--gold-050)" },
+  flagged:  { label: "ملاحظة", fg: "var(--danger)", bg: "var(--danger-050)" },
 } as const;
 
-const toneOf = (u: Unit) => (u.flagged ? "flagged" : u.status === "occupied" ? "occupied" : "vacant");
+const stateOf = (u: Unit) => (u.flagged ? "flagged" : u.status === "occupied" ? "occupied" : "vacant");
+
+/** حلقة نسبة صغيرة بجانب اسم الدور. */
+function Ring({ value, size = 34 }: { value: number; size?: number }) {
+  const r = 14;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(100, value));
+  const color = v === 100 ? "var(--ok)" : v >= 50 ? "var(--primary)" : "var(--gold)";
+  return (
+    <svg viewBox="0 0 36 36" style={{ width: size, height: size }} className="-rotate-90 shrink-0" aria-hidden>
+      <circle cx="18" cy="18" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="5" />
+      <circle
+        cx="18" cy="18" r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+        strokeDasharray={`${(v / 100) * c} ${c}`}
+        style={{ transition: "stroke-dasharray .5s ease" }}
+      />
+    </svg>
+  );
+}
 
 export default function ApartmentsPage() {
   const { data, activeBuilding } = useStore();
@@ -29,6 +46,7 @@ export default function ApartmentsPage() {
   const buildingId = activeBuilding === "all" ? data.buildings[0]?.id ?? "" : activeBuilding;
   const building = data.buildings.find((b) => b.id === buildingId);
 
+  const [openFloors, setOpenFloors] = useState<string[]>([]);
   const [openUnit, setOpenUnit] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -43,9 +61,9 @@ export default function ApartmentsPage() {
     flagged: units.filter((u) => u.flagged).length,
   }), [units]);
 
+  const rate = counts.all ? ((counts.occupied + counts.flagged) / counts.all) * 100 : 0;
   const needle = q.trim().toLowerCase();
 
-  /** الوحدات المطابقة — الباقي يبهت ليبقى شكل العمارة كاملًا. */
   const matched = useMemo(() => {
     if (!needle && filter === "all") return null;
     const set = new Set<string>();
@@ -67,20 +85,23 @@ export default function ApartmentsPage() {
     return set;
   }, [needle, filter, units, data]);
 
-  /** الأدوار من الأعلى إلى الأسفل — المخطط يُقرأ كما تُرى العمارة. */
   const floors = useMemo(
     () =>
       data.floors
         .filter((f) => f.buildingId === buildingId)
         .sort((a, b) => b.level - a.level)
-        .map((f) => ({
-          ...f,
-          units: units
+        .map((f) => {
+          const all = units
             .filter((u) => u.floorId === f.id)
-            .sort((a, b) => a.number.localeCompare(b.number, "ar", { numeric: true })),
-        })),
-    [data.floors, buildingId, units]
+            .sort((a, b) => a.number.localeCompare(b.number, "ar", { numeric: true }));
+          return { ...f, all, shown: matched ? all.filter((u) => matched.has(u.id)) : all };
+        })
+        .filter((f) => (matched ? f.shown.length : true)),
+    [data.floors, buildingId, units, matched]
   );
+
+  const toggle = (id: string) =>
+    setOpenFloors((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   if (!building) {
     return (
@@ -88,6 +109,12 @@ export default function ApartmentsPage() {
         action={<a href="/buildings" className="btn btn-primary"><Icon name="plus" size={15} /> إضافة عقار</a>} />
     );
   }
+
+  const stats: { label: string; value: string; icon: IconName; fg: string; bg: string }[] = [
+    { label: "إجمالي الوحدات", value: num(counts.all), icon: "building", fg: "var(--primary)", bg: "var(--primary-050)" },
+    { label: "مؤجرة", value: num(counts.occupied + counts.flagged), icon: "users", fg: "var(--ok)", bg: "var(--ok-050)" },
+    { label: "شاغرة", value: num(counts.vacant), icon: "home", fg: "var(--gold-600)", bg: "var(--gold-050)" },
+  ];
 
   const chips: { v: Filter; label: string; n: number }[] = [
     { v: "all", label: "الكل", n: counts.all },
@@ -100,7 +127,7 @@ export default function ApartmentsPage() {
     <div className="space-y-3">
       <PageHeader
         title="الشقق"
-        subtitle={`${num(units.length)} وحدة · ${num(counts.occupied + counts.flagged)} مؤجرة · ${num(counts.vacant)} شاغرة`}
+        subtitle={building.name}
         actions={
           allow("units.edit") ? (
             <button className="btn btn-primary btn-sm" onClick={() => setAddOpen("menu")}>
@@ -109,6 +136,28 @@ export default function ApartmentsPage() {
           ) : undefined
         }
       />
+
+      {/* ============================ أرقام العقار ============================ */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className="card flex items-center gap-2.5 p-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: s.bg, color: s.fg }}>
+              <Icon name={s.icon} size={17} />
+            </span>
+            <span className="min-w-0">
+              <span className="num block text-[19px] font-bold leading-none">{s.value}</span>
+              <span className="t-xs block truncate text-[var(--muted)]">{s.label}</span>
+            </span>
+          </div>
+        ))}
+        <div className="card flex items-center gap-2.5 p-3">
+          <Ring value={rate} size={36} />
+          <span className="min-w-0">
+            <span className="num block text-[19px] font-bold leading-none">{pct(rate)}</span>
+            <span className="t-xs block truncate text-[var(--muted)]">نسبة الإشغال</span>
+          </span>
+        </div>
+      </div>
 
       <SearchBox value={q} onChange={setQ} placeholder="رقم الشقة، اسم المستأجر، الهاتف…" />
 
@@ -120,75 +169,70 @@ export default function ApartmentsPage() {
         ))}
       </div>
 
-      {/* ======================== مخطط العمارة ======================== */}
-      <div className="panel overflow-hidden">
-        {floors.map((f, i) => {
-          const occ = f.units.filter((u) => u.status === "occupied").length;
-          const rate = f.units.length ? (occ / f.units.length) * 100 : 0;
-          return (
-            <div key={f.id} className={i ? "border-t border-[var(--line)]" : ""}>
-              <div className="flex items-center gap-2.5 px-3.5 pt-2.5">
-                <span className="w-[52px] shrink-0 text-[13px] font-bold text-[var(--ink-2)]">{f.name}</span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                  <span
-                    className="block h-full rounded-full transition-[width] duration-500"
-                    style={{ width: `${rate}%`, background: rate === 100 ? "var(--ok)" : "var(--primary)" }}
-                  />
-                </span>
-                <span className="num w-[40px] shrink-0 text-left text-[11.5px] font-bold text-[var(--muted)]">
-                  {num(occ)}/{num(f.units.length)}
-                </span>
-              </div>
+      {/* ============================== الأدوار ============================== */}
+      {floors.length ? (
+        <div className="space-y-2">
+          {floors.map((f) => {
+            const open = matched ? true : openFloors.includes(f.id);
+            const occ = f.all.filter((u) => u.status === "occupied").length;
+            const vac = f.all.length - occ;
+            const r = f.all.length ? (occ / f.all.length) * 100 : 0;
+            return (
+              <div key={f.id} className="card overflow-hidden">
+                <button
+                  onClick={() => toggle(f.id)}
+                  className="flex w-full items-center gap-3 p-3 text-right transition hover:bg-[var(--surface-2)]"
+                  aria-expanded={open}
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--primary-050)] text-[var(--primary)]">
+                    <Icon name="layers" size={17} />
+                  </span>
 
-              <div className="flex flex-wrap gap-1.5 px-3.5 pb-3 pt-2">
-                {f.units.length ? f.units.map((u) => {
-                  const t = TONE[toneOf(u)];
-                  const dim = matched ? !matched.has(u.id) : false;
-                  return (
-                    <button
-                      key={u.id}
-                      onClick={() => setOpenUnit(u.id)}
-                      title={u.number}
-                      className="grid h-[38px] min-w-[38px] place-items-center rounded-lg border px-2 text-[12px] font-bold transition active:scale-95"
-                      style={{
-                        background: t.bg, color: t.fg,
-                        borderColor: t.bd,
-                        borderStyle: toneOf(u) === "vacant" ? "dashed" : "solid",
-                        opacity: dim ? 0.22 : 1,
-                      }}
-                    >
-                      <span className="num truncate">{u.number}</span>
-                    </button>
-                  );
-                }) : (
-                  <p className="t-xs py-1.5 text-[var(--muted)]">لا توجد وحدات في هذا الدور</p>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold">{f.name}</span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="t-xs text-[var(--muted)]">{num(f.all.length)} وحدة</span>
+                      <span className="tag" style={{ background: "var(--ok-050)", color: "var(--ok)" }}>
+                        {num(occ)} مؤجرة
+                      </span>
+                      {vac > 0 && (
+                        <span className="tag" style={{ background: "var(--gold-050)", color: "var(--gold-600)" }}>
+                          {num(vac)} شاغرة
+                        </span>
+                      )}
+                      {matched && <span className="t-xs text-[var(--primary)]">{num(f.shown.length)} نتيجة</span>}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Ring value={r} />
+                    <span className="num hidden text-[12.5px] font-bold text-[var(--ink-2)] sm:block">{pct(r)}</span>
+                    <Icon
+                      name="chevronDown" size={16}
+                      className="text-[var(--faint)] transition-transform"
+                      style={{ transform: open ? "rotate(180deg)" : "none" }}
+                    />
+                  </span>
+                </button>
+
+                {open && (
+                  <div className="border-t border-[var(--line)] bg-[var(--surface-2)] p-2.5">
+                    {f.shown.length ? (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {f.shown.map((u) => <UnitCard key={u.id} unit={u} onOpen={setOpenUnit} />)}
+                      </div>
+                    ) : (
+                      <p className="t-sm py-3 text-center text-[var(--muted)]">لا توجد وحدات في هذا الدور</p>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* دليل الألوان */}
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pb-1">
-        {([
-          ["occupied", "مؤجرة"],
-          ["vacant", "شاغرة"],
-          ["flagged", "عليها ملاحظة"],
-        ] as const).map(([k, label]) => (
-          <span key={k} className="flex items-center gap-1.5 text-[11.5px] text-[var(--muted)]">
-            <span
-              className="h-3 w-3 rounded-[4px] border"
-              style={{
-                background: TONE[k].bg,
-                borderColor: TONE[k].bd,
-                borderStyle: k === "vacant" ? "dashed" : "solid",
-              }}
-            />
-            {label}
-          </span>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="card"><Empty icon="search" title="لا توجد نتائج مطابقة" /></div>
+      )}
 
       <UnitSheet unitId={openUnit} onClose={() => setOpenUnit(null)} />
 
@@ -197,6 +241,36 @@ export default function ApartmentsPage() {
       {addOpen === "bulk" && <BulkUnitsForm open onClose={() => setAddOpen(null)} buildingId={buildingId} />}
       {addOpen === "floor" && <FloorForm open onClose={() => setAddOpen(null)} buildingId={buildingId} />}
     </div>
+  );
+}
+
+/** بطاقة الوحدة: الرقم، اسم ساكنها، إيجارها، وحالتها. */
+function UnitCard({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }) {
+  const { data } = useStore();
+  const { allow } = useAuth();
+  const { tenant } = tenantOfUnit(data, unit.id);
+  const st = STATE[stateOf(unit)];
+
+  return (
+    <button
+      onClick={() => onOpen(unit.id)}
+      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-right transition hover:border-[var(--line-strong)] hover:shadow-[var(--sh-1)] active:scale-[.98]"
+    >
+      <p className="num text-[18px] font-bold leading-none text-[var(--ink)]">{unit.number}</p>
+      <p className="mt-1.5 truncate text-[12.5px] font-semibold text-[var(--ink-2)]">
+        {tenant?.name ?? "—"}
+      </p>
+      {allow("finance.view") && (
+        <p className="num t-xs mt-0.5 text-[var(--muted)]">{KWD(unit.baseRent)}</p>
+      )}
+      <span
+        className="tag mt-2 inline-flex"
+        style={{ background: st.bg, color: st.fg }}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.fg }} />
+        {st.label}
+      </span>
+    </button>
   );
 }
 

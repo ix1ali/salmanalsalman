@@ -6,10 +6,11 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { floorStats, kpis } from "@/lib/selectors";
 import { KWD, num, pct } from "@/lib/format";
-import { Chip, Empty, KeyVal, PageHeader, Progress, Sheet, useConfirm } from "@/components/ui";
+import { Chip, Empty, KeyVal, PageHeader, Sheet, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import { BuildingForm, FloorForm } from "@/components/forms";
 import DocsPanel from "@/components/DocsPanel";
+import { useBuildingPhoto } from "@/components/BuildingPhoto";
 import type { Building } from "@/lib/types";
 
 export default function BuildingsPage() {
@@ -67,68 +68,19 @@ export default function BuildingsPage() {
 
       {data.buildings.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {data.buildings.map((b) => {
-            const k = kpis(data, b.id);
-            return (
-              <div key={b.id} className="card overflow-hidden">
-                <div className="h-1.5 w-full" style={{ background: b.color }} />
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-3">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-white" style={{ background: b.color }}>
-                        <Icon name="building" size={21} />
-                      </span>
-                      <div>
-                        <h3 className="t-title">{b.name}</h3>
-                        <p className="text-[11.5px] text-[var(--muted)]">
-                          {b.area} · {b.block} · {b.buildingNo}
-                        </p>
-                      </div>
-                    </div>
-                    <Chip tone={k.occupancyRate >= 85 ? "green" : k.occupancyRate >= 60 ? "amber" : "rose"}>
-                      {pct(k.occupancyRate)}
-                    </Chip>
-                  </div>
-
-                  <div className="mt-3">
-                    <Progress value={k.occupancyRate} tone={k.occupancyRate >= 85 ? "green" : "amber"} />
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                    {[
-                      ["وحدات", num(k.totalUnits)],
-                      ["مؤجرة", num(k.occupied)],
-                      ["شاغرة", num(k.vacant)],
-                      ...(allow("finance.view") ? [["الدخل", KWD(k.monthlyRentRoll)]] : [["أدوار", num(data.floors.filter((f) => f.buildingId === b.id).length)]]),
-                    ].map(([l, v]) => (
-                      <div key={l} className="rounded-xl bg-[var(--surface-2)] p-2">
-                        <p className="num font-bold text-[14px] tabular-nums">{v}</p>
-                        <p className="text-[10.5px] text-[var(--muted)]">{l}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <button className="btn btn-soft btn-sm flex-1" onClick={() => setOpenId(b.id)}>
-                      <Icon name="eye" size={14} /> التفاصيل
-                    </button>
-                    <Link
-                      href="/apartments"
-                      onClick={() => setActiveBuilding(b.id)}
-                      className="btn btn-ghost btn-sm flex-1"
-                    >
-                      <Icon name="grid" size={14} /> الشقق
-                    </Link>
-                    {allow("buildings.edit") && (
-                      <button className="btn btn-ghost btn-icon !p-2" onClick={() => setEditing(b)} aria-label="تعديل">
-                        <Icon name="edit" size={15} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {data.buildings.map((b) => (
+            <BuildingCard
+              key={b.id}
+              b={b}
+              k={kpis(data, b.id)}
+              floorCount={data.floors.filter((f) => f.buildingId === b.id).length}
+              canSeeFinance={allow("finance.view")}
+              canEdit={allow("buildings.edit")}
+              onDetails={() => setOpenId(b.id)}
+              onEdit={() => setEditing(b)}
+              onOpenUnits={() => setActiveBuilding(b.id)}
+            />
+          ))}
         </div>
       ) : (
         <Empty
@@ -208,6 +160,86 @@ export default function BuildingsPage() {
       </Sheet>
 
       {addFloor && building && <FloorForm open onClose={() => setAddFloor(false)} buildingId={building.id} />}
+    </div>
+  );
+}
+
+
+/* ============================ بطاقة العمارة ============================ */
+
+/** صورة الواجهة أولًا، ثم الاسم والعنوان، ثم الأرقام والإجراءات. */
+function BuildingCard({
+  b, k, floorCount, canSeeFinance, canEdit, onDetails, onEdit, onOpenUnits,
+}: {
+  b: Building;
+  k: ReturnType<typeof kpis>;
+  floorCount: number;
+  canSeeFinance: boolean;
+  canEdit: boolean;
+  onDetails: () => void;
+  onEdit: () => void;
+  onOpenUnits: () => void;
+}) {
+  const photo = useBuildingPhoto(b.photo);
+
+  return (
+    <div className="card overflow-hidden">
+      {/* صورة الواجهة */}
+      <div className="relative h-[150px] w-full">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "50% 38%" }} />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center" style={{ background: b.color }}>
+            <Icon name="building" size={34} className="text-white/35" />
+          </div>
+        )}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(to top, rgba(7,45,43,.88) 0%, rgba(7,45,43,.18) 55%, rgba(7,45,43,0) 100%)" }}
+        />
+        <span className="absolute right-3 top-3">
+          <Chip tone={k.occupancyRate >= 85 ? "green" : k.occupancyRate >= 60 ? "amber" : "rose"}>
+            {pct(k.occupancyRate)} إشغال
+          </Chip>
+        </span>
+        <div className="absolute inset-x-0 bottom-0 p-3.5 text-white">
+          <h3 className="text-[17px] font-bold leading-tight">{b.name}</h3>
+          <p className="mt-0.5 text-[11.5px] text-white/70">
+            {[b.area, b.block, b.buildingNo].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-3.5">
+        <div className="grid grid-cols-4 gap-2 text-center">
+          {([
+            ["وحدات", num(k.totalUnits)],
+            ["مؤجرة", num(k.occupied)],
+            ["شاغرة", num(k.vacant)],
+            canSeeFinance ? ["الدخل", KWD(k.monthlyRentRoll)] : ["أدوار", num(floorCount)],
+          ] as [string, string][]).map(([l, v]) => (
+            <div key={l} className="rounded-xl bg-[var(--surface-2)] px-1.5 py-2">
+              <p className="num text-[13.5px] font-bold leading-tight">{v}</p>
+              <p className="t-xs mt-0.5 text-[var(--muted)]">{l}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button className="btn btn-soft btn-sm flex-1" onClick={onDetails}>
+            <Icon name="eye" size={14} /> التفاصيل
+          </button>
+          <Link href="/apartments" onClick={onOpenUnits} className="btn btn-ghost btn-sm flex-1">
+            <Icon name="grid" size={14} /> الشقق
+          </Link>
+          {canEdit && (
+            <button className="btn btn-ghost btn-icon !p-2" onClick={onEdit} aria-label="تعديل">
+              <Icon name="edit" size={15} />
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
