@@ -16,6 +16,9 @@ const NAVY = "#123a6b";
 const MUTED = "#7089a3";
 const LINE = "#cbd7e5";
 
+/** التاريخ إن وُجد، وإلا فراغ يُكتب باليد — لا تُطبع شرطة أبدًا. */
+const dateOrBlank = (iso?: string) => (iso ? dateShort(iso) : "");
+
 const WEEKDAY = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 const dayName = (iso?: string) => {
   if (!iso) return "";
@@ -393,7 +396,6 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
         <div className="text-left" dir="ltr">
           <p style={{ fontSize: S.org - 1.5, fontWeight: 800, lineHeight: 1.3 }}>Salman AlSalman</p>
           <p style={{ fontSize: S.sub, fontWeight: 700 }}>Real Estate</p>
-          <p style={{ fontSize: S.sub, color: MUTED }}>State of Kuwait</p>
         </div>
       </div>
 
@@ -550,7 +552,7 @@ export function EvictionSheet({ f }: { f: EvictionFields }) {
       <LetterHead
         title="طلب إخلاء"
         en="Eviction Acknowledgement"
-        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>في الكويت — {dateShort(f.date)}</p>}
+        meta={<p className="mt-1 text-[11.5px]" style={{ color: MUTED }}>في الكويت{f.date ? ` — ${dateShort(f.date)}` : ""}</p>}
       />
 
       <p className="mb-4 text-[13.5px] font-extrabold" style={{ color: NAVY }}>
@@ -570,7 +572,7 @@ export function EvictionSheet({ f }: { f: EvictionFields }) {
       </p>
 
       <div className="mb-4">
-        <Line k="بتاريخ :" v={dateShort(f.date)} />
+        <Line k="بتاريخ :" v={dateOrBlank(f.date)} />
       </div>
 
       <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "#2a4361" }}>
@@ -579,10 +581,11 @@ export function EvictionSheet({ f }: { f: EvictionFields }) {
         عليّ من التزامات ومستحقات.
       </p>
 
+      {/* تُملأ بخطّ اليد بعد الطباعة — لا تُطبع أي بيانات هنا */}
       <div className="grid gap-y-3 sm:w-1/2">
-        <Line k="الاسم :" v={f.tenantName} />
-        <Line k="الرقم المدني :" v={f.civilId} />
-        <Line k="التاريخ :" v={dateShort(f.date)} />
+        <Line k="الاسم :" v="" />
+        <Line k="الرقم المدني :" v="" />
+        <Line k="التاريخ :" v="" />
         <Line k="التوقيع :" v="" />
       </div>
 

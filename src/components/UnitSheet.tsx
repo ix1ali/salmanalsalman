@@ -4,13 +4,13 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
-import { KeyVal, Money, Sheet, TextArea, useConfirm } from "./ui";
+import { Field, KeyVal, Money, Sheet, TextArea, TextInput, useConfirm } from "./ui";
 import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { ContractForm, PaymentForm, UnitForm } from "./forms";
 import { markPaid, unmarkPaid } from "@/lib/payments";
-import { ContractDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
-import { KWD, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod } from "@/lib/format";
+import { ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
+import { KWD, addMonths, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
 import { tenantOfUnit, unitBalance } from "@/lib/selectors";
 import { unitColor } from "@/lib/unitColor";
 
@@ -23,12 +23,16 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   const [editing, setEditing] = useState(false);
   const [newContract, setNewContract] = useState(false);
   const [newPayment, setNewPayment] = useState<string | null>(null);
-  const [printKind, setPrintKind] = useState<null | "contract" | "receipt">(null);
+  const [printKind, setPrintKind] = useState<null | "contract" | "receipt" | "eviction">(null);
   const [flagOpen, setFlagOpen] = useState(false);
   const [flagText, setFlagText] = useState("");
   const [showDocs, setShowDocs] = useState(false);
   const [showAllPays, setShowAllPays] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
+  const [vacateOpen, setVacateOpen] = useState(false);
+  const [renewFrom, setRenewFrom] = useState("");
+  const [renewTo, setRenewTo] = useState("");
+  const [vacateDate, setVacateDate] = useState(todayISO());
 
   const unit = useMemo(() => data.units.find((u) => u.id === unitId) ?? null, [data.units, unitId]);
   const floor = data.floors.find((f) => f.id === unit?.floorId);
@@ -70,27 +74,40 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
     setFlagOpen(false);
   };
 
-  const endContract = async () => {
+  /** إخلاء الشقة: ينتهي العقد وتعود الوحدة شاغرة جاهزة لمستأجر جديد. */
+  const vacate = async () => {
     if (!contract) return;
-    if (!(await confirm("إنهاء العقد", `تصير الشقة ${unit.number} شاغرة. متأكد؟`))) return;
+    const ok = await confirm(
+      `إخلاء شقة ${unit.number}`,
+      `سينتهي عقد ${tenant?.name ?? "المستأجر"} وتصبح الشقة شاغرة جاهزة للتأجير. الوصولات السابقة تبقى محفوظة في السجل.`
+    );
+    if (!ok) return;
     update((d) => {
       const c = d.contracts.find((x) => x.id === contract.id);
-      if (c) c.status = "terminated";
+      if (c) { c.status = "terminated"; c.endDate = vacateDate; }
       const u = d.units.find((x) => x.id === unit.id);
-      if (u) u.status = "vacant";
-    }, { action: "إنهاء عقد", detail: `الوحدة ${unit.number}`, actor: user?.username });
-    toast("تم إنهاء العقد");
+      if (u) { u.status = "vacant"; u.flagged = false; u.flagNote = undefined; u.flaggedAt = undefined; }
+    }, { action: "إخلاء شقة", detail: `${unit.number} — ${tenant?.name ?? ""}`, actor: user?.username });
+    toast("تم إخلاء الشقة");
+    setVacateOpen(false);
   };
 
-  const renew = async (months: number) => {
+  const openRenew = () => {
     if (!contract) return;
-    const end = new Date(contract.endDate);
-    end.setMonth(end.getMonth() + months);
+    setRenewFrom(contract.endDate);
+    setRenewTo(addMonths(contract.endDate, 12));
+    setRenewOpen(true);
+  };
+
+  const renew = async () => {
+    if (!contract) return;
+    if (!renewFrom || !renewTo) return toast("حدّد تاريخ البداية والنهاية", "error");
+    if (renewTo <= renewFrom) return toast("تاريخ النهاية يجب أن يكون بعد البداية", "error");
     update((d) => {
       const c = d.contracts.find((x) => x.id === contract.id);
-      if (c) { c.endDate = end.toISOString().slice(0, 10); c.status = "active"; }
-    }, { action: "تجديد عقد", detail: `شقة ${unit.number} +${months} شهر`, actor: user?.username });
-    toast(`تجدد العقد ${months} شهر`);
+      if (c) { c.startDate = renewFrom; c.endDate = renewTo; c.status = "active"; }
+    }, { action: "تجديد عقد", detail: `شقة ${unit.number} — ${renewFrom} إلى ${renewTo}`, actor: user?.username });
+    toast("تم تجديد العقد");
     setRenewOpen(false);
   };
 
@@ -196,11 +213,14 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             <KeyVal k="التأمين" v={KWD(contract.deposit)} icon="lock" />
             {allow("contracts.edit") && (
               <div className="mt-2.5 flex flex-wrap gap-2">
-                <button className="btn btn-ghost btn-sm flex-1" onClick={() => setRenewOpen(true)}>
+                <button className="btn btn-ghost btn-sm flex-1" onClick={openRenew}>
                   <Icon name="refresh" size={14} /> تجديد العقد
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={endContract}>
-                  <Icon name="x" size={14} /> إنهاء
+                <button
+                  className="btn btn-danger btn-sm flex-1"
+                  onClick={() => { setVacateDate(todayISO()); setVacateOpen(true); }}
+                >
+                  <Icon name="logout" size={14} /> إخلاء الشقة
                 </button>
               </div>
             )}
@@ -387,19 +407,71 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         </Sheet>
       )}
 
-      {/* تجديد */}
+      {/* تجديد العقد — بتاريخ بداية ونهاية */}
       {renewOpen && contract && (
-        <Sheet open onClose={() => setRenewOpen(false)} title="تجديد العقد">
+        <Sheet
+          open
+          onClose={() => setRenewOpen(false)}
+          title="تجديد العقد"
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={renew}>
+                <Icon name="check" size={16} /> حفظ التجديد
+              </button>
+              <button className="btn btn-ghost" onClick={() => setRenewOpen(false)}>إلغاء</button>
+            </div>
+          }
+        >
           <p className="mb-3 text-[13px] text-[var(--muted)]">
-            العقد ينتهي {dateShort(contract.endDate)}. اختر مدة التمديد المطلوبة.
+            العقد الحالي ينتهي {dateShort(contract.endDate)}.
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="يبدأ بتاريخ" required>
+              <TextInput type="date" value={renewFrom} onChange={(e) => setRenewFrom(e.target.value)} />
+            </Field>
+            <Field label="وينتهي بتاريخ" required>
+              <TextInput type="date" value={renewTo} onChange={(e) => setRenewTo(e.target.value)} />
+            </Field>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {[6, 12, 24].map((m) => (
-              <button key={m} className="btn btn-ghost !py-4 !text-base" onClick={() => renew(m)}>
-                {m} شهر
+              <button
+                key={m}
+                className="btn btn-ghost btn-sm"
+                onClick={() => setRenewTo(addMonths(renewFrom || contract.endDate, m))}
+              >
+                + {m} شهر
               </button>
             ))}
           </div>
+        </Sheet>
+      )}
+
+      {/* إخلاء الشقة */}
+      {vacateOpen && contract && (
+        <Sheet
+          open
+          onClose={() => setVacateOpen(false)}
+          title={`إخلاء شقة ${unit.number}`}
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-danger flex-1" onClick={vacate}>
+                <Icon name="logout" size={16} /> تأكيد الإخلاء
+              </button>
+              <button className="btn btn-ghost" onClick={() => setVacateOpen(false)}>إلغاء</button>
+            </div>
+          }
+        >
+          <p className="mb-3 text-[13px] leading-relaxed text-[var(--muted)]">
+            سينتهي عقد <b className="text-[var(--ink)]">{tenant?.name}</b> وتعود الشقة شاغرة جاهزة
+            للتأجير. الوصولات والسجل السابق تبقى محفوظة.
+          </p>
+          <Field label="تاريخ الإخلاء">
+            <TextInput type="date" value={vacateDate} onChange={(e) => setVacateDate(e.target.value)} />
+          </Field>
+          <button className="btn btn-ghost btn-sm mt-3 w-full" onClick={() => setPrintKind("eviction")}>
+            <Icon name="print" size={14} /> طباعة طلب الإخلاء للتوقيع
+          </button>
         </Sheet>
       )}
 
@@ -408,6 +480,14 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
       {newPayment && contract && (
         <PaymentForm open onClose={() => setNewPayment(null)} presetContractId={contract.id} presetPeriod={newPayment} />
       )}
+
+      <PrintOverlay
+        open={printKind === "eviction"}
+        onClose={() => setPrintKind(null)}
+        fileTitle={`طلب إخلاء — ${tenant?.name ?? unit.number}`}
+      >
+        <EvictionDoc unitId={unit.id} tenantId={tenant?.id} date={vacateDate} />
+      </PrintOverlay>
 
       <PrintOverlay
         open={printKind === "contract"}

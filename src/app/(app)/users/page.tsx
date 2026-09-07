@@ -7,12 +7,15 @@ import { useToast } from "@/components/Toast";
 import { dateShort, roleDesc, roleLabel } from "@/lib/format";
 import { Chip, Empty, Field, KeyVal, PageHeader, Select, Sheet, TextInput, useConfirm } from "@/components/ui";
 import PasswordForm from "@/components/PasswordForm";
-import { Icon } from "@/components/Icons";
+import { Icon, type IconName } from "@/components/Icons";
 import { passwordStrength } from "@/lib/crypto";
 import { PERMS } from "@/lib/permissions";
 import type { Role, User } from "@/lib/types";
 
-const roleTone = { admin: "teal", viewer: "sky", guard: "gold" } as const;
+const roleTone = { admin: "teal", manager: "violet", viewer: "sky", guard: "gold" } as const;
+
+const roleIcon = (r: Role): IconName =>
+  r === "admin" ? "shield" : r === "manager" ? "building" : r === "viewer" ? "eye" : "key";
 
 export default function UsersPage() {
   const { data } = useStore();
@@ -68,7 +71,7 @@ export default function UsersPage() {
                   u.active ? "bg-[var(--primary)]" : "bg-[#a5b6c4]"
                 }`}
               >
-                <Icon name={u.role === "admin" ? "shield" : u.role === "viewer" ? "eye" : "key"} size={19} />
+                <Icon name={roleIcon(u.role)} size={19} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-semibold">
@@ -102,12 +105,12 @@ export default function UsersPage() {
       {/* مصفوفة الصلاحيات */}
       <div className="card p-3.5">
         <h2 className="mb-3 text-[15px]">ماذا يستطيع كل دور؟</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(["admin", "viewer", "guard"] as Role[]).map((r) => (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {(["admin", "manager", "viewer", "guard"] as Role[]).map((r) => (
             <div key={r} className="rounded-lg border border-[var(--line)] p-3">
               <div className="mb-2 flex items-center gap-2">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--primary-050)] text-[var(--primary-700)]">
-                  <Icon name={r === "admin" ? "shield" : r === "viewer" ? "eye" : "key"} size={16} />
+                  <Icon name={roleIcon(r)} size={16} />
                 </span>
                 <div>
                   <p className="text-[13px] font-bold">{roleLabel[r]}</p>
@@ -168,6 +171,7 @@ export default function UsersPage() {
 
 const DESCR: Record<Role, string[]> = {
   admin: ["كل الصفحات والتعديل", "إدارة العمارات والوحدات", "العقود والمالية والوصولات", "رفع وحذف المستندات", "إدارة المستخدمين"],
+  manager: ["كل شيء داخل عقاراته فقط", "الشقق والمستأجرون والعقود", "المالية والوصولات والمصروفات", "لا يرى العقارات الأخرى", "لا يدير المستخدمين ولا الإعدادات"],
   viewer: ["اطلاع على كل البيانات", "الكشوفات والتقارير", "تصدير البيانات", "بدون أي تعديل أو حذف"],
   guard: ["الشقق وبيانات المستأجرين", "فتح ومتابعة بلاغات الصيانة", "بدون بيانات مالية", "بدون تعديل على العقود"],
 };
@@ -186,6 +190,11 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
     phone: target?.phone ?? "",
     password: "",
   });
+  const [buildingIds, setBuildingIds] = useState<string[]>(
+    Array.isArray(target?.buildingIds) ? target.buildingIds : []
+  );
+  const toggleBuilding = (id: string) =>
+    setBuildingIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const strength = useMemo(() => passwordStrength(f.password), [f.password]);
 
   const save = async () => {
@@ -196,14 +205,21 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
     if (data.users.some((u) => u.username.toLowerCase() === uname && u.id !== target?.id))
       return toast("اسم المستخدم محجوز", "error");
     if (!target && strength.problems.length) return toast(`كلمة المرور: ${strength.problems[0]}`, "error");
+    if (f.role === "manager" && buildingIds.length === 0)
+      return toast("اختر العقار الذي يشرف عليه", "error");
+
+    const scopeIds: string[] | "all" = f.role === "manager" ? buildingIds : "all";
 
     setBusy(true);
     const res = target
       ? await saveUser(target.id, {
-          displayName: f.displayName.trim(), role: f.role, phone: f.phone,
+          displayName: f.displayName.trim(), role: f.role, phone: f.phone, buildingIds: scopeIds,
           ...(canRenameUsers ? { username: uname } : {}),
         })
-      : await createUser({ username: uname, displayName: f.displayName.trim(), role: f.role, phone: f.phone, password: f.password });
+      : await createUser({
+          username: uname, displayName: f.displayName.trim(), role: f.role,
+          phone: f.phone, password: f.password, buildingIds: scopeIds,
+        });
     setBusy(false);
     if (!res.ok) return toast(res.message, "error");
     toast("تم الحفظ");
@@ -247,10 +263,45 @@ function UserForm({ open, onClose, target }: { open: boolean; onClose: () => voi
         <Field label="الدور" required className="sm:col-span-2">
           <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as Role })}>
             <option value="admin">مدير — صلاحية كاملة</option>
+            <option value="manager">مشرف عقار — صلاحية كاملة على عقاراته</option>
             <option value="viewer">مشاهد — اطلاع فقط</option>
             <option value="guard">حارس — الشقق والبلاغات</option>
           </Select>
         </Field>
+        {f.role === "manager" && (
+          <Field label="العقارات التي يشرف عليها" required className="sm:col-span-2" hint="لن يرى غيرها إطلاقًا">
+            <div className="space-y-1.5">
+              {data.buildings.map((b) => {
+                const on = buildingIds.includes(b.id);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => toggleBuilding(b.id)}
+                    className="flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-right transition"
+                    style={{
+                      borderColor: on ? "var(--primary)" : "var(--line)",
+                      background: on ? "var(--primary-050)" : "var(--surface)",
+                    }}
+                  >
+                    <span
+                      className="grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border-2"
+                      style={{
+                        borderColor: on ? "var(--primary)" : "var(--line-strong)",
+                        background: on ? "var(--primary)" : "#fff",
+                        color: "#fff",
+                      }}
+                    >
+                      {on && <Icon name="check" size={12} strokeWidth={3} />}
+                    </span>
+                    <span className="flex-1 text-[13px] font-semibold">{b.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+        )}
+
         {!target && (
           <Field label="كلمة المرور" required className="sm:col-span-2" hint="٨ أحرف على الأقل، تحتوي حرفًا ورقمًا">
             <TextInput type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} dir="ltr" />

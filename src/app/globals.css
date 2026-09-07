@@ -238,12 +238,14 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 /* ============================ الطباعة ============================ */
 
 @media print {
-  @page { size: A4; margin: 14mm; }
+  /* هامش الصفحة صفر يمنع المتصفح من طباعة ترويسته (العنوان والرابط والتاريخ)،
+     والهامش الحقيقي يأتي من حشو الورقة نفسها */
+  @page { size: A4; margin: 0; }
   body { background: #fff; font-size: 12px; }
   .no-print { display: none !important; }
   body.print-mode > *:not(#print-portal) { display: none !important; }
   body.print-mode #print-portal { position: static !important; overflow: visible !important; background: #fff !important; padding: 0 !important; }
-  body.print-mode #print-portal > .print-sheet { max-width: none !important; padding: 0 !important; border: 0 !important; }
+  body.print-mode #print-portal > .print-sheet { max-width: none !important; padding: 14mm !important; border: 0 !important; }
   .card, .panel { box-shadow: none; border-color: #d7dee6; break-inside: avoid; }
 }
 .print-only { display: none; }

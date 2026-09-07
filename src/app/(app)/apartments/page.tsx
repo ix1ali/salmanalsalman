@@ -65,7 +65,8 @@ export default function ApartmentsPage() {
     () =>
       data.floors
         .filter((f) => f.buildingId === buildingId)
-        .sort((a, b) => b.level - a.level)
+        // تصاعديًا من السرداب إلى الأعلى — نفس ترتيب الكشف المالي وورقة التحصيل
+        .sort((a, b) => a.level - b.level)
         .map((f) => {
           const all = units.filter((u) => u.floorId === f.id);
           return { ...f, all, shown: matched ? all.filter((u) => matched.has(u.id)) : all };
@@ -76,6 +77,9 @@ export default function ApartmentsPage() {
 
   const toggle = (id: string) =>
     setOpenFloors((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  const allOpen = floors.length > 0 && floors.every((f) => openFloors.includes(f.id));
+  const toggleAll = () => setOpenFloors(allOpen ? [] : floors.map((f) => f.id));
 
   if (!building) {
     return (
@@ -100,16 +104,24 @@ export default function ApartmentsPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row-reverse sm:items-center">
         <SearchBox value={q} onChange={setQ} placeholder="رقم الشقة، اسم المستأجر، الهاتف…" />
-        <Filters
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: "all", label: "الكل", count: counts.all },
-            { value: "occupied", label: "مؤجرة", count: counts.occupied },
-            { value: "vacant", label: "شاغرة", count: counts.vacant },
-            ...(counts.flagged ? [{ value: "flagged" as const, label: "ملاحظة", count: counts.flagged }] : []),
-          ]}
-        />
+        <div className="flex items-center gap-2">
+          <Filters
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: "الكل", count: counts.all },
+              { value: "occupied", label: "مؤجرة", count: counts.occupied },
+              { value: "vacant", label: "شاغرة", count: counts.vacant },
+              ...(counts.flagged ? [{ value: "flagged" as const, label: "ملاحظة", count: counts.flagged }] : []),
+            ]}
+          />
+          {!matched && (
+            <button className="btn btn-ghost btn-sm shrink-0" onClick={toggleAll}>
+              <Icon name="chevronDown" size={13} style={{ transform: allOpen ? "rotate(180deg)" : "none" }} />
+              {allOpen ? "طيّ الكل" : "فتح الكل"}
+            </button>
+          )}
+        </div>
       </div>
 
       {floors.length ? (
@@ -142,7 +154,7 @@ export default function ApartmentsPage() {
                 {open && (
                   <div className="border-t border-[var(--line)] bg-[var(--surface-2)] p-2">
                     {f.shown.length ? (
-                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
+                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-8">
                         {f.shown.map((u) => <UnitTile key={u.id} unit={u} onOpen={setOpenUnit} />)}
                       </div>
                     ) : (

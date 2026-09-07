@@ -73,11 +73,12 @@ export const bytes = (n: number) => {
 // ===== Labels =====
 
 export const roleLabel: Record<Role, string> = {
-  admin: "مدير", viewer: "مشاهد", guard: "حارس",
+  admin: "مدير", manager: "مشرف عقار", viewer: "مشاهد", guard: "حارس",
 };
 
 export const roleDesc: Record<Role, string> = {
   admin: "صلاحية كاملة على النظام",
+  manager: "صلاحية كاملة على عقاراته فقط",
   viewer: "اطّلاع فقط دون تعديل",
   guard: "الوحدات والملاحظات فقط",
 };

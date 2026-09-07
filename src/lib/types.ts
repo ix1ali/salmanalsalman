@@ -1,6 +1,7 @@
 // ===== Core domain types =====
 
-export type Role = "admin" | "viewer" | "guard";
+/** manager = صلاحية كاملة لكن على عقاراته المسندة فقط، وبلا إدارة مستخدمين. */
+export type Role = "admin" | "manager" | "viewer" | "guard";
 
 export type UnitStatus = "occupied" | "vacant";
 export type UnitKind = "apartment" | "shop" | "storage" | "office" | "parking";

@@ -26,6 +26,8 @@ export interface NewUser {
   role: Role;
   phone?: string;
   password: string;
+  /** العقارات المسندة — "all" لكل العقارات، أو قائمة معرّفات لمشرف عقار. */
+  buildingIds?: string[] | "all";
 }
 
 interface AuthCtx {
@@ -41,7 +43,7 @@ interface AuthCtx {
   clearNotice: () => void;
   /** إدارة الحسابات — تختلف آليتها بين المحلي والسحابي وتتوحّد هنا. */
   createUser: (u: NewUser) => Promise<AuthResult>;
-  saveUser: (id: string, patch: Partial<Pick<User, "displayName" | "role" | "phone" | "username" | "active">>) => Promise<AuthResult>;
+  saveUser: (id: string, patch: Partial<Pick<User, "displayName" | "role" | "phone" | "username" | "active" | "buildingIds">>) => Promise<AuthResult>;
   removeUser: (id: string) => Promise<AuthResult>;
   /** هل يمكن تغيير اسم المستخدم بعد الإنشاء؟ (لا في الوضع السحابي) */
   canRenameUsers: boolean;
@@ -256,6 +258,7 @@ function CloudAuth({ children }: { children: React.ReactNode }) {
     const { error } = await sb().rpc("admin_create_user", {
       p_username: uname, p_password: u.password, p_display: u.displayName.trim(),
       p_role: u.role, p_phone: u.phone || null,
+      p_building_ids: !u.buildingIds || u.buildingIds === "all" ? null : u.buildingIds,
     });
     if (error) return { ok: false, message: cloudError(error) };
     return { ok: true };
@@ -269,6 +272,7 @@ function CloudAuth({ children }: { children: React.ReactNode }) {
       if (patch.role !== undefined) t.role = patch.role;
       if (patch.phone !== undefined) t.phone = patch.phone;
       if (patch.active !== undefined) t.active = patch.active;
+      if (patch.buildingIds !== undefined) t.buildingIds = patch.buildingIds;
     }, { action: "تعديل مستخدم", detail: id, actor: profile?.username });
     return { ok: true };
   }, [update, profile?.username]);
@@ -425,7 +429,7 @@ function LocalAuth({ children }: { children: React.ReactNode }) {
     update((d) => {
       d.users.push({
         id: uid("u-"), username: uname, displayName: u.displayName.trim(), role: u.role,
-        salt, hash, active: true, buildingIds: "all", phone: u.phone,
+        salt, hash, active: true, buildingIds: u.buildingIds ?? "all", phone: u.phone,
         createdAt: new Date().toISOString(), mustChangePassword: true,
       });
     }, { action: "إضافة مستخدم", detail: uname, actor: user?.username });
@@ -446,6 +450,7 @@ function LocalAuth({ children }: { children: React.ReactNode }) {
       if (patch.role !== undefined) t.role = patch.role;
       if (patch.phone !== undefined) t.phone = patch.phone;
       if (patch.active !== undefined) t.active = patch.active;
+      if (patch.buildingIds !== undefined) t.buildingIds = patch.buildingIds;
     }, { action: "تعديل مستخدم", detail: id, actor: user?.username });
     return { ok: true };
   }, [data.users, update, user?.username]);

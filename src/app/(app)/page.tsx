@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, floorStats, kpis, lastPeriods, scope } from "@/lib/selectors";
-import { KWD, amount, dateShort, monthAr, monthsLabel, num, pct, thisPeriod } from "@/lib/format";
+import { amount, dateShort, monthAr, monthsLabel, num, pct, thisPeriod } from "@/lib/format";
 import { Money, Progress } from "@/components/ui";
 import { Gauge } from "@/components/Charts";
 import { Icon, type IconName } from "@/components/Icons";
@@ -75,17 +75,27 @@ export default function DashboardPage() {
       <section className="anim-up overflow-hidden rounded-xl border border-[var(--line)]">
         <div className="flex items-center gap-4 bg-[var(--primary)] p-4 text-white">
           <Gauge value={k.occupancyRate} size={84} label="إشغال" />
-          <div className="min-w-0 flex-1">
-            <p className="num text-[26px] font-bold leading-none">
-              {num(k.occupied)}<span className="text-[14px] text-white/50"> / {num(k.totalUnits)}</span>
-            </p>
-            <p className="mt-1 text-[12px] text-white/60">وحدة مؤجرة</p>
-            {k.vacant > 0 && (
-              <p className="mt-2 text-[12px]">
-                <span className="num font-bold text-[var(--gold)]">{num(k.vacant)}</span>
-                <span className="text-white/60"> شاغرة</span>
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+            <div>
+              <p className="num text-[22px] font-bold leading-none">
+                {num(k.occupied)}<span className="text-[13px] text-white/45"> / {num(k.totalUnits)}</span>
               </p>
-            )}
+              <p className="mt-1 text-[11.5px] text-white/60">وحدة مؤجرة</p>
+            </div>
+
+            <Link href="/apartments" className="transition hover:opacity-80">
+              <p className="num text-[22px] font-bold leading-none text-[var(--gold)]">{num(k.vacant)}</p>
+              <p className="mt-1 flex items-center gap-1 text-[11.5px] text-white/60">
+                شاغرة {k.vacant > 0 && <Icon name="chevronLeft" size={11} />}
+              </p>
+            </Link>
+
+            <div className="col-span-2 border-t border-white/10 pt-2.5 sm:col-span-1 sm:border-0 sm:pt-0">
+              <p className="num text-[22px] font-bold leading-none">
+                {amount(k.monthlyRentRoll)}<span className="text-[11px] text-white/45"> د.ك</span>
+              </p>
+              <p className="mt-1 text-[11.5px] text-white/60">إيجار الشهر المتعاقد</p>
+            </div>
           </div>
         </div>
 
@@ -245,9 +255,6 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <p className="pb-1 text-center text-[11px] text-[var(--faint)]">
-        {KWD(k.monthlyRentRoll)} إيجار شهري متعاقد
-      </p>
     </div>
   );
 }
