@@ -386,7 +386,7 @@ export function BuildingForm({
 export function TenantForm({
   open, onClose, tenant, onSaved,
 }: { open: boolean; onClose: () => void; tenant?: Tenant; onSaved?: (id: string) => void }) {
-  const { data, update } = useStore();
+  const { data, update, activeBuilding } = useStore();
   const { user } = useAuth();
   const toast = useToast();
   const [f, setF] = useState({
@@ -401,8 +401,13 @@ export function TenantForm({
     notes: tenant?.notes ?? "",
   });
 
+  // المستأجر يُسجَّل تحت العقار المفتوح حاليًا
+  const buildingId = tenant?.buildingId
+    ?? (activeBuilding === "all" ? data.buildings[0]?.id ?? "" : activeBuilding);
+
   const save = () => {
     if (!f.name.trim()) return toast("أدخل اسم المستأجر", "error");
+    if (!buildingId) return toast("لا يوجد عقار لتسجيل المستأجر تحته", "error");
     if (f.civilId && !/^\d{12}$/.test(f.civilId)) return toast("الرقم المدني لازم ١٢ رقم", "error");
     if (f.civilId && data.tenants.some((t) => t.civilId === f.civilId && t.id !== tenant?.id))
       return toast("الرقم المدني مسجل لمستأجر آخر", "error");
@@ -414,7 +419,9 @@ export function TenantForm({
           const t = d.tenants.find((x) => x.id === tenant.id);
           if (t) Object.assign(t, f);
         } else {
-          d.tenants.push({ id, ...f, active: true, createdAt: new Date().toISOString() });
+          d.tenants.push({
+            id, ...f, buildingId, active: true, createdAt: new Date().toISOString(),
+          });
         }
       },
       { action: tenant ? "تعديل مستأجر" : "إضافة مستأجر", detail: f.name, actor: user?.username }
@@ -518,7 +525,11 @@ export function ContractForm({
     update(
       (d) => {
         if (newTenant) {
-          d.tenants.push({ id: tenantId, ...nt, active: true, createdAt: new Date().toISOString() });
+          // المستأجر الجديد يتبع عقار الوحدة المتعاقد عليها
+          d.tenants.push({
+            id: tenantId, ...nt, buildingId: unit.buildingId,
+            active: true, createdAt: new Date().toISOString(),
+          });
         }
         if (contract) {
           const c = d.contracts.find((x) => x.id === contract.id);

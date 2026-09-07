@@ -83,6 +83,8 @@ export interface Unit {
 
 export interface Tenant {
   id: string;
+  /** العقار الذي يتبعه المستأجر — كل عقار ومستأجروه. */
+  buildingId: string;
   name: string;
   civilId: string;
   phone: string;

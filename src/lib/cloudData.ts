@@ -103,13 +103,15 @@ const units: Coll<"units"> = {
 const tenants: Coll<"tenants"> = {
   key: "tenants", table: "tenants", order: { col: "name", asc: true },
   fromRow: (r): Tenant => ({
-    id: str(r.id), name: str(r.name), civilId: str(r.civil_id), phone: str(r.phone),
+    id: str(r.id), buildingId: str(r.building_id), name: str(r.name),
+    civilId: str(r.civil_id), phone: str(r.phone),
     phone2: s(r.phone2), nationality: s(r.nationality), email: s(r.email),
     workplace: s(r.workplace), emergencyContact: s(r.emergency_contact), notes: s(r.notes),
     active: r.active !== false, createdAt: str(r.created_at),
   }),
   toRow: (t: Tenant) => ({
-    id: t.id, name: t.name, civil_id: t.civilId || null, phone: t.phone,
+    id: t.id, building_id: t.buildingId || null, name: t.name,
+    civil_id: t.civilId || null, phone: t.phone,
     phone2: t.phone2 ?? null, nationality: t.nationality ?? null, email: t.email ?? null,
     workplace: t.workplace ?? null, emergency_contact: t.emergencyContact ?? null,
     notes: t.notes ?? null, active: t.active, created_at: t.createdAt,

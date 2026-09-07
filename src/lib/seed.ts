@@ -102,6 +102,7 @@ export async function buildSeed(): Promise<AppData> {
     const tenantId = `t-${r.seq}`;
     tenants.push({
       id: tenantId,
+      buildingId: BID,
       name: r.name,
       civilId: r.civilId,
       phone: r.phone,

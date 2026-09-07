@@ -17,7 +17,10 @@ export function scope(data: AppData, buildingId: string): Scope {
   const payments = all ? data.payments : data.payments.filter((p) => p.buildingId === buildingId);
   const expenses = all ? data.expenses : data.expenses.filter((e) => e.buildingId === buildingId);
   const tenantIds = new Set(contracts.map((c) => c.tenantId));
-  const tenants = all ? data.tenants : data.tenants.filter((t) => tenantIds.has(t.id));
+  // المستأجر يتبع عقاره مباشرة؛ ويبقى شرط العقد لبيانات قديمة بلا عقار محدَّد
+  const tenants = all
+    ? data.tenants
+    : data.tenants.filter((t) => t.buildingId === buildingId || (!t.buildingId && tenantIds.has(t.id)));
   return { units, contracts, payments, expenses, tenantIds, tenants };
 }
 
