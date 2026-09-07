@@ -25,6 +25,8 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   const [newPayment, setNewPayment] = useState<string | null>(null);
   const [printKind, setPrintKind] = useState<null | "contract" | "receipt" | "eviction">(null);
   const [flagOpen, setFlagOpen] = useState(false);
+  const [maintOpen, setMaintOpen] = useState(false);
+  const [maintText, setMaintText] = useState("");
   const [flagText, setFlagText] = useState("");
   const [showDocs, setShowDocs] = useState(false);
   const [showAllPays, setShowAllPays] = useState(false);
@@ -62,6 +64,33 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
       setFlagText("");
       setFlagOpen(true);
     }
+  };
+
+  /** تحت الصيانة أو لا — تبديل واحد بضغطة، مع سبب اختياري. */
+  const toggleMaintenance = () => {
+    if (unit.maintenance) {
+      update((d) => {
+        const u = d.units.find((x) => x.id === unit.id);
+        if (u) { u.maintenance = false; u.maintenanceNote = undefined; u.maintenanceAt = undefined; }
+      }, { action: "إنهاء صيانة", detail: `الوحدة ${unit.number}`, actor: user?.username });
+      toast("انتهت الصيانة");
+    } else {
+      setMaintText("");
+      setMaintOpen(true);
+    }
+  };
+
+  const saveMaintenance = () => {
+    update((d) => {
+      const u = d.units.find((x) => x.id === unit.id);
+      if (u) {
+        u.maintenance = true;
+        u.maintenanceNote = maintText.trim() || undefined;
+        u.maintenanceAt = new Date().toISOString();
+      }
+    }, { action: "تحويل إلى صيانة", detail: `${unit.number}${maintText.trim() ? ` — ${maintText.trim()}` : ""}`, actor: user?.username });
+    toast("الشقة تحت الصيانة");
+    setMaintOpen(false);
   };
 
   const saveFlag = () => {
@@ -141,6 +170,21 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
             <p className="text-[12px] text-[var(--muted)]">{building?.name} · {floor?.name}</p>
           </div>
         </div>
+
+        {/* الصيانة */}
+        {unit.maintenance && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg p-3" style={{ background: "var(--maint-050)" }}>
+            <Icon name="wrench" size={18} className="mt-0.5 shrink-0" style={{ color: "var(--maint)" }} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold" style={{ color: "var(--maint)" }}>
+                {unit.maintenanceNote || "تحت الصيانة"}
+              </p>
+              <p className="text-[11px]" style={{ color: "var(--maint)", opacity: .7 }}>
+                منذ {dateShort(unit.maintenanceAt)}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* التنبيه */}
         {unit.flagged && (
@@ -339,6 +383,34 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           </button>
         )}
 
+        {/* تحت الصيانة */}
+        {allow("units.edit") && (
+          <button
+            onClick={toggleMaintenance}
+            className="card mb-3 flex w-full items-center gap-3 p-3 text-right transition hover:bg-[var(--surface-2)]"
+          >
+            <span
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+              style={{
+                background: unit.maintenance ? "var(--ok-050)" : "var(--maint-050)",
+                color: unit.maintenance ? "var(--ok)" : "var(--maint)",
+              }}
+            >
+              <Icon name={unit.maintenance ? "check" : "wrench"} size={18} />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[13.5px] font-semibold">
+                {unit.maintenance ? "إنهاء الصيانة" : "تحويلها إلى صيانة"}
+              </span>
+              <span className="block text-[11.5px] text-[var(--muted)]">
+                {unit.maintenance
+                  ? "تعود الشقة إلى حالتها الطبيعية"
+                  : "تُغطّى بالبنفسجي في المخطط وتُعدّ ضمن الصيانة"}
+              </span>
+            </span>
+          </button>
+        )}
+
         {/* المستندات */}
         {allow("docs.view") && (
           <div className="card mb-3 overflow-hidden">
@@ -375,6 +447,37 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
           </div>
         )}
       </Sheet>
+
+      {/* سبب الصيانة */}
+      {maintOpen && (
+        <Sheet
+          open
+          onClose={() => setMaintOpen(false)}
+          title={`صيانة شقة ${unit.number}`}
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={saveMaintenance}>
+                <Icon name="check" size={16} /> تحويلها إلى صيانة
+              </button>
+              <button className="btn btn-ghost" onClick={() => setMaintOpen(false)}>إلغاء</button>
+            </div>
+          }
+        >
+          <p className="mb-2 text-[13px] text-[var(--muted)]">ما نوع الصيانة؟ (اختياري)</p>
+          <TextArea
+            value={maintText}
+            onChange={(e) => setMaintText(e.target.value)}
+            placeholder="مثال: تغيير سخان الماء"
+            rows={3}
+            autoFocus
+          />
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {["دهان", "سباكة", "كهرباء", "تكييف", "تشطيب", "تنظيف عميق"].map((x) => (
+              <button key={x} className="btn btn-ghost btn-sm" onClick={() => setMaintText(x)}>{x}</button>
+            ))}
+          </div>
+        </Sheet>
+      )}
 
       {/* نافذة كتابة التنبيه */}
       {flagOpen && (

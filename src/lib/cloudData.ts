@@ -89,6 +89,8 @@ const units: Coll<"units"> = {
     area: n(r.area), rooms: n(r.rooms), bathrooms: n(r.bathrooms), balconies: n(r.balconies),
     baseRent: nb(r.base_rent), meterNo: s(r.meter_no), notes: s(r.notes),
     flagged: Boolean(r.flagged), flagNote: s(r.flag_note), flaggedAt: s(r.flagged_at),
+    maintenance: Boolean(r.maintenance), maintenanceNote: s(r.maintenance_note),
+    maintenanceAt: s(r.maintenance_at),
     createdAt: str(r.created_at),
   }),
   toRow: (u: Unit) => ({
@@ -96,7 +98,9 @@ const units: Coll<"units"> = {
     kind: u.kind, status: u.status, area: u.area ?? null, rooms: u.rooms ?? null,
     bathrooms: u.bathrooms ?? null, balconies: u.balconies ?? null, base_rent: u.baseRent,
     meter_no: u.meterNo ?? null, notes: u.notes ?? null, flagged: !!u.flagged,
-    flag_note: u.flagNote ?? null, flagged_at: u.flaggedAt ?? null, created_at: u.createdAt,
+    flag_note: u.flagNote ?? null, flagged_at: u.flaggedAt ?? null,
+    maintenance: !!u.maintenance, maintenance_note: u.maintenanceNote ?? null,
+    maintenance_at: u.maintenanceAt ?? null, created_at: u.createdAt,
   }),
 };
 

@@ -43,6 +43,11 @@
   --warn-050: #fdf4e4;
   --danger: #c2453c;
   --danger-050: #fbedeb;
+  /* الصيانة — لون رابع مميّز لا يشبه المؤجّرة ولا الشاغرة ولا الملاحظة */
+  --maint: #6d5bd0;
+  --maint-050: #eeebfa;
+  --maint-100: #ddd7f4;
+
   --steel: #637673;
   --steel-050: #eef2f1;
 

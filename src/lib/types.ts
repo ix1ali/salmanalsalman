@@ -80,6 +80,10 @@ export interface Unit {
   flagged?: boolean;
   flagNote?: string;
   flaggedAt?: string;
+  /** الشقة تحت الصيانة — تُغطّى بلون مميّز وتُعدّ على حدة */
+  maintenance?: boolean;
+  maintenanceNote?: string;
+  maintenanceAt?: string;
   createdAt: string;
 }
 

@@ -11,15 +11,18 @@ import UnitSheet from "@/components/UnitSheet";
 import { BulkUnitsForm, FloorForm, UnitForm } from "@/components/forms";
 import type { Unit } from "@/lib/types";
 
-type Filter = "all" | "occupied" | "vacant" | "flagged";
+type Filter = "all" | "occupied" | "vacant" | "maintenance" | "flagged";
 
 const STATE = {
-  occupied: { label: "مؤجرة", fg: "var(--ok)", bg: "var(--ok-050)" },
-  vacant:   { label: "شاغرة", fg: "var(--gold-600)", bg: "var(--gold-050)" },
-  flagged:  { label: "ملاحظة", fg: "var(--danger)", bg: "var(--danger-050)" },
+  occupied:    { label: "مؤجرة", fg: "var(--ok)", bg: "var(--ok-050)" },
+  vacant:      { label: "شاغرة", fg: "var(--gold-600)", bg: "var(--gold-050)" },
+  maintenance: { label: "تحت الصيانة", fg: "var(--maint)", bg: "var(--maint-050)" },
+  flagged:     { label: "ملاحظة", fg: "var(--danger)", bg: "var(--danger-050)" },
 } as const;
 
-const stateOf = (u: Unit) => (u.flagged ? "flagged" : u.status === "occupied" ? "occupied" : "vacant");
+/** الصيانة تسبق كل شيء: الشقة معطّلة فعليًا مهما كانت حالتها الأخرى. */
+const stateOf = (u: Unit) =>
+  u.maintenance ? "maintenance" : u.flagged ? "flagged" : u.status === "occupied" ? "occupied" : "vacant";
 
 /** حلقة نسبة صغيرة بجانب اسم الدور. */
 function Ring({ value, size = 34 }: { value: number; size?: number }) {
@@ -56,9 +59,10 @@ export default function ApartmentsPage() {
 
   const counts = useMemo(() => ({
     all: units.length,
-    occupied: units.filter((u) => u.status === "occupied" && !u.flagged).length,
-    vacant: units.filter((u) => u.status === "vacant" && !u.flagged).length,
-    flagged: units.filter((u) => u.flagged).length,
+    occupied: units.filter((u) => stateOf(u) === "occupied").length,
+    vacant: units.filter((u) => stateOf(u) === "vacant").length,
+    maintenance: units.filter((u) => u.maintenance).length,
+    flagged: units.filter((u) => stateOf(u) === "flagged").length,
   }), [units]);
 
   const rate = counts.all ? ((counts.occupied + counts.flagged) / counts.all) * 100 : 0;
@@ -68,9 +72,7 @@ export default function ApartmentsPage() {
     if (!needle && filter === "all") return null;
     const set = new Set<string>();
     units.forEach((u) => {
-      if (filter === "occupied" && !(u.status === "occupied" && !u.flagged)) return;
-      if (filter === "vacant" && !(u.status === "vacant" && !u.flagged)) return;
-      if (filter === "flagged" && !u.flagged) return;
+      if (filter !== "all" && stateOf(u) !== filter) return;
       if (needle) {
         const t = tenantOfUnit(data, u.id).tenant;
         const hit =
@@ -114,12 +116,14 @@ export default function ApartmentsPage() {
     { label: "إجمالي الوحدات", value: num(counts.all), icon: "building", fg: "var(--primary)", bg: "var(--primary-050)" },
     { label: "مؤجرة", value: num(counts.occupied + counts.flagged), icon: "users", fg: "var(--ok)", bg: "var(--ok-050)" },
     { label: "شاغرة", value: num(counts.vacant), icon: "home", fg: "var(--gold-600)", bg: "var(--gold-050)" },
+    { label: "تحت الصيانة", value: num(counts.maintenance), icon: "wrench", fg: "var(--maint)", bg: "var(--maint-050)" },
   ];
 
   const chips: { v: Filter; label: string; n: number }[] = [
     { v: "all", label: "الكل", n: counts.all },
     { v: "occupied", label: "مؤجرة", n: counts.occupied },
     { v: "vacant", label: "شاغرة", n: counts.vacant },
+    ...(counts.maintenance ? [{ v: "maintenance" as const, label: "صيانة", n: counts.maintenance }] : []),
     ...(counts.flagged ? [{ v: "flagged" as const, label: "ملاحظة", n: counts.flagged }] : []),
   ];
 
@@ -138,7 +142,7 @@ export default function ApartmentsPage() {
       />
 
       {/* ============================ أرقام العقار ============================ */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
           <div key={s.label} className="card flex items-center gap-2.5 p-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: s.bg, color: s.fg }}>
@@ -175,6 +179,7 @@ export default function ApartmentsPage() {
           {floors.map((f) => {
             const open = matched ? true : openFloors.includes(f.id);
             const occ = f.all.filter((u) => u.status === "occupied").length;
+            const mnt = f.all.filter((u) => u.maintenance).length;
             const vac = f.all.length - occ;
             const r = f.all.length ? (occ / f.all.length) * 100 : 0;
             return (
@@ -198,6 +203,11 @@ export default function ApartmentsPage() {
                       {vac > 0 && (
                         <span className="tag" style={{ background: "var(--gold-050)", color: "var(--gold-600)" }}>
                           {num(vac)} شاغرة
+                        </span>
+                      )}
+                      {mnt > 0 && (
+                        <span className="tag" style={{ background: "var(--maint-050)", color: "var(--maint)" }}>
+                          <Icon name="wrench" size={10} strokeWidth={2.5} /> {num(mnt)} صيانة
                         </span>
                       )}
                       {matched && <span className="t-xs text-[var(--primary)]">{num(f.shown.length)} نتيجة</span>}
@@ -249,25 +259,54 @@ function UnitCard({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }
   const { data } = useStore();
   const { allow } = useAuth();
   const { tenant } = tenantOfUnit(data, unit.id);
-  const st = STATE[stateOf(unit)];
+  const state = stateOf(unit);
+  const st = STATE[state];
+  const inMaint = state === "maintenance";
 
+  // الصيانة تُغطّي البطاقة كلها بلونها لتُميَّز من بين عشرات الشقق
   return (
     <button
       onClick={() => onOpen(unit.id)}
-      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-right transition hover:border-[var(--line-strong)] hover:shadow-[var(--sh-1)] active:scale-[.98]"
+      className="relative overflow-hidden rounded-xl border p-3 text-right transition hover:shadow-[var(--sh-1)] active:scale-[.98]"
+      style={{
+        background: inMaint ? "var(--maint)" : "var(--surface)",
+        borderColor: inMaint ? "var(--maint)" : "var(--line)",
+        color: inMaint ? "#fff" : undefined,
+      }}
     >
-      <p className="num text-[18px] font-bold leading-none text-[var(--ink)]">{unit.number}</p>
-      <p className="mt-1.5 truncate text-[12.5px] font-semibold text-[var(--ink-2)]">
-        {tenant?.name ?? "—"}
+      {inMaint && (
+        <span className="absolute left-2 top-2 opacity-80">
+          <Icon name="wrench" size={14} />
+        </span>
+      )}
+      <p
+        className="num text-[18px] font-bold leading-none"
+        style={{ color: inMaint ? "#fff" : "var(--ink)" }}
+      >
+        {unit.number}
+      </p>
+      <p
+        className="mt-1.5 truncate text-[12.5px] font-semibold"
+        style={{ color: inMaint ? "rgba(255,255,255,.85)" : "var(--ink-2)" }}
+      >
+        {inMaint ? (unit.maintenanceNote || tenant?.name || "—") : (tenant?.name ?? "—")}
       </p>
       {allow("finance.view") && (
-        <p className="num t-xs mt-0.5 text-[var(--muted)]">{KWD(unit.baseRent)}</p>
+        <p
+          className="num t-xs mt-0.5"
+          style={{ color: inMaint ? "rgba(255,255,255,.65)" : "var(--muted)" }}
+        >
+          {KWD(unit.baseRent)}
+        </p>
       )}
       <span
         className="tag mt-2 inline-flex"
-        style={{ background: st.bg, color: st.fg }}
+        style={{
+          background: inMaint ? "rgba(255,255,255,.18)" : st.bg,
+          color: inMaint ? "#fff" : st.fg,
+        }}
       >
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.fg }} />
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: inMaint ? "#fff" : st.fg }} />
         {st.label}
       </span>
     </button>
