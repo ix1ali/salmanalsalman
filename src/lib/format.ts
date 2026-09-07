@@ -3,9 +3,13 @@ import type { ExpenseCategory, PayMethod, Role, UnitKind, UnitStatus, DocKind, C
 // أرقام لاتينية مع نصوص عربية — الأسهل قراءةً في الاستخدام التجاري بالكويت
 const AR = "ar-KW-u-nu-latn";
 
-/** الرقم فقط بثلاث خانات عشرية — يُستخدم مع مكوّن Money الذي يضيف «د.ك». */
+/**
+ * الرقم فقط — يُستخدم مع مكوّن Money الذي يضيف «د.ك».
+ * لا تُطبع أصفار لا لزوم لها: 5000 تظهر «5,000» لا «5,000.000»،
+ * والفلوس تبقى ظاهرة عند وجودها: 150.5 و 140.250.
+ */
 export const amount = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString(AR, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  (Number.isFinite(n) ? n : 0).toLocaleString(AR, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
 
 /** مبلغ مالي كنص كامل — دائمًا مصحوب بـ «د.ك» لتمييزه عن الأرقام العادية. */
 export const KWD = (n: number) => `${amount(n)} د.ك`;
