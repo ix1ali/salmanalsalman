@@ -29,8 +29,12 @@ const dayName = (iso?: string) => {
 /* =========================== غلاف قابل للطباعة =========================== */
 
 export function PrintOverlay({
-  open, onClose, children, fileTitle,
-}: { open: boolean; onClose: () => void; children: React.ReactNode; fileTitle: string }) {
+  open, onClose, children, fileTitle, flush,
+}: {
+  open: boolean; onClose: () => void; children: React.ReactNode; fileTitle: string;
+  /** ورقة بلا هوامش — للمستندات التي تدير قياس الصفحة بنفسها. */
+  flush?: boolean;
+}) {
   useEffect(() => {
     if (!open) return;
     document.body.classList.add("print-mode");
@@ -58,7 +62,7 @@ export function PrintOverlay({
           <Icon name="print" size={15} /> طباعة / PDF
         </button>
       </div>
-      <div className="print-sheet mx-auto max-w-[820px] bg-white p-6 shadow-[var(--sh-3)] sm:rounded-b-2xl sm:p-10">
+      <div className={`print-sheet mx-auto max-w-[820px] bg-white shadow-[var(--sh-3)] sm:rounded-b-2xl ${flush ? "flush p-0" : "p-6 sm:p-10"}`}>
         {children}
       </div>
     </div>,
@@ -900,22 +904,29 @@ export function ReceiptsBatchDoc({ items }: { items: ReceiptFields[] }) {
   const pages: ReceiptFields[][] = [];
   for (let i = 0; i < items.length; i += 2) pages.push(items.slice(i, i + 2));
 
+  // A4 = 297mm. كل نصف 148.5mm بالضبط، فطيّ الورقة نصفين يقع على الحدّ تمامًا.
+  const HALF: React.CSSProperties = {
+    height: "148.5mm",
+    padding: "11mm 12mm",
+    boxSizing: "border-box",
+    overflow: "hidden",
+  };
+
   return (
     <>
       {pages.map((pair, i) => (
-        <div key={i} style={{ breakAfter: i < pages.length - 1 ? "page" : "auto" }}>
-          <div style={{ minHeight: "118mm" }}>
+        <div
+          key={i}
+          style={{
+            height: "297mm",
+            boxSizing: "border-box",
+            breakAfter: i < pages.length - 1 ? "page" : "auto",
+          }}
+        >
+          <div style={HALF}>
             <ReceiptSheet f={pair[0]} compact />
           </div>
-          <div className="relative my-2 border-t border-dashed" style={{ borderColor: "#94a3b4" }}>
-            <span
-              className="absolute -top-2 right-1/2 translate-x-1/2 bg-white px-2 text-[9px]"
-              style={{ color: "#8b9bad" }}
-            >
-              ✂ يُقصّ هنا
-            </span>
-          </div>
-          <div style={{ minHeight: "118mm" }}>
+          <div style={HALF}>
             {pair[1] && <ReceiptSheet f={pair[1]} compact />}
           </div>
         </div>

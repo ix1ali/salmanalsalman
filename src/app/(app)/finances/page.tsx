@@ -424,7 +424,7 @@ export default function FinancesPage() {
         <CollectionSheetDoc buildingId={buildingId} period={period} />
       </PrintOverlay>
 
-      <PrintOverlay open={doc?.k === "batch"} onClose={() => setDoc(null)} fileTitle={`وصولات ${monthAr(period)}`}>
+      <PrintOverlay open={doc?.k === "batch"} onClose={() => setDoc(null)} fileTitle={`وصولات ${monthAr(period)}`} flush>
         <ReceiptsBatchDoc items={receiptItems} />
       </PrintOverlay>
 
