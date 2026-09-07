@@ -55,7 +55,7 @@ export async function buildSeed(): Promise<AppData> {
     buildingNo: TURAB_BUILDING.buildingNo,
     parcel: TURAB_BUILDING.parcel,
     ownerName: TURAB_BUILDING.ownerName,
-    color: "#123a6b",
+    color: "#0f5b57",
     notes: "تسعون شقة سكنية، إضافة إلى المحل في الدور الأرضي والسرداب.",
     createdAt: nowIso,
   }];

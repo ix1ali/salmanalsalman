@@ -8,43 +8,43 @@
 
 :root {
   /* الأسطح */
-  --bg: #f4f5f7;
+  --bg: #f4f6f6;
   --surface: #ffffff;
-  --surface-2: #fafbfc;
-  --surface-3: #f1f3f5;
+  --surface-2: #fafbfb;
+  --surface-3: #eef2f2;
 
   /* النص */
-  --ink: #16202c;
-  --ink-2: #3d4855;
-  --muted: #6f7b89;
-  --faint: #9aa4b0;
+  --ink: #14211f;
+  --ink-2: #384946;
+  --muted: #6b7b78;
+  --faint: #98a6a3;
 
   /* الحدود */
-  --line: #e6e9ed;
-  --line-strong: #d2d7de;
+  --line: #e4eae9;
+  --line-strong: #cfd9d7;
 
   /* الكحلي — لون العلامة */
-  --primary: #17324e;
-  --primary-600: #112640;
-  --primary-700: #0b1a2c;
-  --primary-050: #eef1f5;
-  --primary-100: #dbe2ea;
+  --primary: #0f5b57;
+  --primary-600: #0b4a47;
+  --primary-700: #073a38;
+  --primary-050: #e8f3f1;
+  --primary-100: #cde5e2;
 
   /* الرملي — لمسة المكتب، للأرقام المالية والإشغال */
-  --gold: #b08d57;
-  --gold-600: #91713f;
-  --gold-050: #f8f4ec;
-  --gold-100: #ece0cb;
+  --gold: #d2952f;
+  --gold-600: #9c6b19;
+  --gold-050: #fdf5e7;
+  --gold-100: #f5e3bf;
 
   /* الحالة فقط — لا تُستخدم للزينة */
-  --ok: #2f7d5b;
-  --ok-050: #ebf3ef;
-  --warn: #b7791f;
-  --warn-050: #faf3e7;
-  --danger: #b4453f;
-  --danger-050: #f9edec;
-  --steel: #6b7684;
-  --steel-050: #f0f2f4;
+  --ok: #1f8a63;
+  --ok-050: #e7f4ee;
+  --warn: #bd7f14;
+  --warn-050: #fdf4e4;
+  --danger: #c2453c;
+  --danger-050: #fbedeb;
+  --steel: #637673;
+  --steel-050: #eef2f1;
 
   /* مرادفات قديمة */
   --sky-050: var(--primary-050);
@@ -56,10 +56,10 @@
   --r-lg: 14px;
   --r-xl: 18px;
 
-  --sh-1: 0 1px 2px rgba(22, 32, 44, .05);
-  --sh-2: 0 2px 10px rgba(22, 32, 44, .07);
-  --sh-3: 0 18px 50px rgba(11, 26, 44, .22);
-  --sh-primary: 0 2px 8px rgba(23, 50, 78, .22);
+  --sh-1: 0 1px 2px rgba(7, 58, 56, .05);
+  --sh-2: 0 2px 10px rgba(7, 58, 56, .07);
+  --sh-3: 0 18px 50px rgba(7, 45, 43, .20);
+  --sh-primary: 0 2px 8px rgba(15, 91, 87, .24);
 
   --topbar-h: 54px;
   --sidebar-w: 232px;

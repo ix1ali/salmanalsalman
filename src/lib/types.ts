@@ -48,6 +48,8 @@ export interface Building {
   builtArea?: number;
   notes?: string;
   color: string;
+  /** مفتاح صورة واجهة العقار في المخزن — تظهر لهذا العقار وحده. */
+  photo?: string;
   createdAt: string;
 }
 

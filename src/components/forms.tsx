@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
@@ -8,6 +8,8 @@ import { Field, Select, Sheet, TextArea, TextInput } from "./ui";
 import { BANKS } from "./print";
 import { Icon } from "./Icons";
 import { uid } from "@/lib/crypto";
+import { delBlob, putBlob } from "@/lib/files";
+import { useBuildingPhoto } from "./BuildingPhoto";
 import { EXPENSE_ORDER, addMonths, expenseLabel, floorName, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
 import type {
   Building, Contract, Expense, ExpenseCategory, PayMethod, Tenant, Unit, UnitKind, UnitStatus,
@@ -295,6 +297,10 @@ export function BuildingForm({
     color: building?.color ?? "var(--primary)",
     notes: building?.notes ?? "",
   });
+  const [photo, setPhoto] = useState<string | undefined>(building?.photo);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoUrl = useBuildingPhoto(photo);
+  const photoRef = useRef<HTMLInputElement>(null);
   const [floorsCount, setFloorsCount] = useState(4);
   const [basement, setBasement] = useState(true);
   const [ground, setGround] = useState(true);
@@ -305,7 +311,7 @@ export function BuildingForm({
       (d) => {
         if (building) {
           const t = d.buildings.find((b) => b.id === building.id);
-          if (t) Object.assign(t, f);
+          if (t) Object.assign(t, f, { photo });
         } else {
           const id = uid("b-");
           d.buildings.push({ id, ...f, createdAt: new Date().toISOString() });
@@ -338,6 +344,57 @@ export function BuildingForm({
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="صورة الواجهة" className="sm:col-span-2" hint="تظهر في الرئيسية عند اختيار هذه العمارة">
+          <input
+            ref={photoRef} type="file" accept="image/*" hidden
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              if (file.size > 6_000_000) return toast("الصورة كبيرة — أقصى حجم ٦ ميغابايت", "error");
+              setPhotoBusy(true);
+              try {
+                const key = `bld-${building?.id ?? uid("b-")}`;
+                await putBlob(key, file);
+                setPhoto(key);
+                toast("تم رفع الصورة — اضغط حفظ");
+              } catch {
+                toast("تعذّر رفع الصورة", "error");
+              } finally {
+                setPhotoBusy(false);
+              }
+            }}
+          />
+          {photoUrl ? (
+            <div className="relative overflow-hidden rounded-xl border border-[var(--line)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoUrl} alt="" className="h-36 w-full object-cover" />
+              <div className="absolute inset-x-0 bottom-0 flex gap-1.5 bg-gradient-to-t from-black/60 to-transparent p-2">
+                <button type="button" className="btn btn-sm !bg-white/90" onClick={() => photoRef.current?.click()}>
+                  <Icon name="refresh" size={13} /> تغيير
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm !bg-white/90 !text-[var(--danger)]"
+                  onClick={async () => { if (photo) { try { await delBlob(photo); } catch {} } setPhoto(undefined); }}
+                >
+                  <Icon name="trash" size={13} /> إزالة
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={photoBusy}
+              onClick={() => photoRef.current?.click()}
+              className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--line-strong)] text-[var(--muted)] transition hover:bg-[var(--surface-2)]"
+            >
+              <Icon name="building" size={20} />
+              <span className="t-xs font-semibold">{photoBusy ? "جاري الرفع…" : "أضف صورة الواجهة"}</span>
+            </button>
+          )}
+        </Field>
+
         <Field label="اسم العمارة" required><TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="مثال: عمارة تراب" /></Field>
         <Field label="الرمز"><TextInput value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} dir="ltr" placeholder="TRB" /></Field>
         <Field label="المنطقة"><TextInput value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} placeholder="حولي" /></Field>

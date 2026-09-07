@@ -59,13 +59,13 @@ const buildings: Coll<"buildings"> = {
     block: str(r.block), street: str(r.street), buildingNo: str(r.building_no),
     parcel: s(r.parcel), ownerName: str(r.owner_name), paciNo: s(r.paci_no),
     landArea: n(r.land_area), builtArea: n(r.built_area), notes: s(r.notes),
-    color: str(r.color, "#123a6b"), createdAt: str(r.created_at),
+    color: str(r.color, "#123a6b"), photo: s(r.photo), createdAt: str(r.created_at),
   }),
   toRow: (b: Building) => ({
     id: b.id, name: b.name, code: b.code, area: b.area, block: b.block, street: b.street,
     building_no: b.buildingNo, parcel: b.parcel ?? null, owner_name: b.ownerName,
     paci_no: b.paciNo ?? null, land_area: b.landArea ?? null, built_area: b.builtArea ?? null,
-    notes: b.notes ?? null, color: b.color, created_at: b.createdAt,
+    notes: b.notes ?? null, color: b.color, photo: b.photo ?? null, created_at: b.createdAt,
   }),
 };
 

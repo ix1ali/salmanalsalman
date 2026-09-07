@@ -4,25 +4,31 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { tenantOfUnit } from "@/lib/selectors";
-import { kindLabel, num } from "@/lib/format";
-import { Empty, Filters, Money, PageHeader, SearchBox, Sheet } from "@/components/ui";
+import { num } from "@/lib/format";
+import { Empty, PageHeader, SearchBox, Sheet } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import UnitSheet from "@/components/UnitSheet";
 import { BulkUnitsForm, FloorForm, UnitForm } from "@/components/forms";
 import type { Unit } from "@/lib/types";
-import { UNIT_COLOR, unitColor } from "@/lib/unitColor";
 
 type Filter = "all" | "occupied" | "vacant" | "flagged";
+
+/** ألوان حالة الوحدة داخل مخطط العمارة. */
+const TONE = {
+  occupied: { bg: "var(--primary-050)", fg: "var(--primary-700)", bd: "transparent" },
+  vacant:   { bg: "var(--gold-050)",    fg: "var(--gold-600)",    bd: "var(--gold)" },
+  flagged:  { bg: "var(--danger-050)",  fg: "var(--danger)",      bd: "var(--danger)" },
+} as const;
+
+const toneOf = (u: Unit) => (u.flagged ? "flagged" : u.status === "occupied" ? "occupied" : "vacant");
 
 export default function ApartmentsPage() {
   const { data, activeBuilding } = useStore();
   const { allow } = useAuth();
 
-  // العقار يُختار من الشريط العلوي — لا تكرار هنا
   const buildingId = activeBuilding === "all" ? data.buildings[0]?.id ?? "" : activeBuilding;
   const building = data.buildings.find((b) => b.id === buildingId);
 
-  const [openFloors, setOpenFloors] = useState<string[]>([]);
   const [openUnit, setOpenUnit] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -39,7 +45,7 @@ export default function ApartmentsPage() {
 
   const needle = q.trim().toLowerCase();
 
-  /** الوحدات المطابقة للبحث والفلتر — null يعني «كل شيء». */
+  /** الوحدات المطابقة — الباقي يبهت ليبقى شكل العمارة كاملًا. */
   const matched = useMemo(() => {
     if (!needle && filter === "all") return null;
     const set = new Set<string>();
@@ -61,25 +67,20 @@ export default function ApartmentsPage() {
     return set;
   }, [needle, filter, units, data]);
 
+  /** الأدوار من الأعلى إلى الأسفل — المخطط يُقرأ كما تُرى العمارة. */
   const floors = useMemo(
     () =>
       data.floors
         .filter((f) => f.buildingId === buildingId)
-        // تصاعديًا من السرداب إلى الأعلى — نفس ترتيب الكشف المالي وورقة التحصيل
-        .sort((a, b) => a.level - b.level)
-        .map((f) => {
-          const all = units.filter((u) => u.floorId === f.id);
-          return { ...f, all, shown: matched ? all.filter((u) => matched.has(u.id)) : all };
-        })
-        .filter((f) => (matched ? f.shown.length : true)),
-    [data.floors, buildingId, units, matched]
+        .sort((a, b) => b.level - a.level)
+        .map((f) => ({
+          ...f,
+          units: units
+            .filter((u) => u.floorId === f.id)
+            .sort((a, b) => a.number.localeCompare(b.number, "ar", { numeric: true })),
+        })),
+    [data.floors, buildingId, units]
   );
-
-  const toggle = (id: string) =>
-    setOpenFloors((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-
-  const allOpen = floors.length > 0 && floors.every((f) => openFloors.includes(f.id));
-  const toggleAll = () => setOpenFloors(allOpen ? [] : floors.map((f) => f.id));
 
   if (!building) {
     return (
@@ -87,6 +88,13 @@ export default function ApartmentsPage() {
         action={<a href="/buildings" className="btn btn-primary"><Icon name="plus" size={15} /> إضافة عقار</a>} />
     );
   }
+
+  const chips: { v: Filter; label: string; n: number }[] = [
+    { v: "all", label: "الكل", n: counts.all },
+    { v: "occupied", label: "مؤجرة", n: counts.occupied },
+    { v: "vacant", label: "شاغرة", n: counts.vacant },
+    ...(counts.flagged ? [{ v: "flagged" as const, label: "ملاحظة", n: counts.flagged }] : []),
+  ];
 
   return (
     <div className="space-y-3">
@@ -102,73 +110,85 @@ export default function ApartmentsPage() {
         }
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row-reverse sm:items-center">
-        <SearchBox value={q} onChange={setQ} placeholder="رقم الشقة، اسم المستأجر، الهاتف…" />
-        <div className="flex items-center gap-2">
-          <Filters
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "all", label: "الكل", count: counts.all },
-              { value: "occupied", label: "مؤجرة", count: counts.occupied },
-              { value: "vacant", label: "شاغرة", count: counts.vacant },
-              ...(counts.flagged ? [{ value: "flagged" as const, label: "ملاحظة", count: counts.flagged }] : []),
-            ]}
-          />
-          {!matched && (
-            <button className="btn btn-ghost btn-sm shrink-0" onClick={toggleAll}>
-              <Icon name="chevronDown" size={13} style={{ transform: allOpen ? "rotate(180deg)" : "none" }} />
-              {allOpen ? "طيّ الكل" : "فتح الكل"}
-            </button>
-          )}
-        </div>
+      <SearchBox value={q} onChange={setQ} placeholder="رقم الشقة، اسم المستأجر، الهاتف…" />
+
+      <div className="no-scrollbar -mx-3 flex gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+        {chips.map((c) => (
+          <button key={c.v} onClick={() => setFilter(c.v)} data-on={filter === c.v} className="chip shrink-0">
+            {c.label}<span className="chip-n num">{c.n}</span>
+          </button>
+        ))}
       </div>
 
-      {floors.length ? (
-        <div className="panel">
-          {floors.map((f, i) => {
-            const open = matched ? true : openFloors.includes(f.id);
-            const occ = f.all.filter((u) => u.status === "occupied").length;
-            const rate = f.all.length ? (occ / f.all.length) * 100 : 0;
-            return (
-              <div key={f.id} className={i ? "border-t border-[var(--line)]" : ""}>
-                <button
-                  onClick={() => toggle(f.id)}
-                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-right transition hover:bg-[var(--surface-2)]"
-                  aria-expanded={open}
-                >
-                  <Icon
-                    name="chevronDown" size={15}
-                    className="shrink-0 text-[var(--faint)] transition-transform"
-                    style={{ transform: open ? "rotate(180deg)" : "none" }}
+      {/* ======================== مخطط العمارة ======================== */}
+      <div className="panel overflow-hidden">
+        {floors.map((f, i) => {
+          const occ = f.units.filter((u) => u.status === "occupied").length;
+          const rate = f.units.length ? (occ / f.units.length) * 100 : 0;
+          return (
+            <div key={f.id} className={i ? "border-t border-[var(--line)]" : ""}>
+              <div className="flex items-center gap-2.5 px-3.5 pt-2.5">
+                <span className="w-[52px] shrink-0 text-[13px] font-bold text-[var(--ink-2)]">{f.name}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                  <span
+                    className="block h-full rounded-full transition-[width] duration-500"
+                    style={{ width: `${rate}%`, background: rate === 100 ? "var(--ok)" : "var(--primary)" }}
                   />
-                  <span className="w-[54px] shrink-0 text-[14px] font-bold">{f.name}</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                    <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${rate}%`, background: rate === 100 ? "var(--ok)" : "var(--primary)" }} />
-                  </span>
-                  {matched && <span className="t-xs shrink-0 text-[var(--muted)]">{num(f.shown.length)} نتيجة</span>}
-                  <span className="num w-[42px] shrink-0 text-left text-[12px] font-semibold text-[var(--muted)]">{num(occ)}/{num(f.all.length)}</span>
-                  {f.all.some((u) => u.flagged) && <span className="dot" style={{ background: UNIT_COLOR.flagged }} />}
-                </button>
+                </span>
+                <span className="num w-[40px] shrink-0 text-left text-[11.5px] font-bold text-[var(--muted)]">
+                  {num(occ)}/{num(f.units.length)}
+                </span>
+              </div>
 
-                {open && (
-                  <div className="border-t border-[var(--line)] bg-[var(--surface-2)] p-2">
-                    {f.shown.length ? (
-                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-8">
-                        {f.shown.map((u) => <UnitTile key={u.id} unit={u} onOpen={setOpenUnit} />)}
-                      </div>
-                    ) : (
-                      <p className="t-sm py-3 text-center text-[var(--muted)]">لا توجد وحدات في هذا الدور</p>
-                    )}
-                  </div>
+              <div className="flex flex-wrap gap-1.5 px-3.5 pb-3 pt-2">
+                {f.units.length ? f.units.map((u) => {
+                  const t = TONE[toneOf(u)];
+                  const dim = matched ? !matched.has(u.id) : false;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => setOpenUnit(u.id)}
+                      title={u.number}
+                      className="grid h-[38px] min-w-[38px] place-items-center rounded-lg border px-2 text-[12px] font-bold transition active:scale-95"
+                      style={{
+                        background: t.bg, color: t.fg,
+                        borderColor: t.bd,
+                        borderStyle: toneOf(u) === "vacant" ? "dashed" : "solid",
+                        opacity: dim ? 0.22 : 1,
+                      }}
+                    >
+                      <span className="num truncate">{u.number}</span>
+                    </button>
+                  );
+                }) : (
+                  <p className="t-xs py-1.5 text-[var(--muted)]">لا توجد وحدات في هذا الدور</p>
                 )}
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="card"><Empty icon="search" title="لا توجد نتائج مطابقة" /></div>
-      )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* دليل الألوان */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pb-1">
+        {([
+          ["occupied", "مؤجرة"],
+          ["vacant", "شاغرة"],
+          ["flagged", "عليها ملاحظة"],
+        ] as const).map(([k, label]) => (
+          <span key={k} className="flex items-center gap-1.5 text-[11.5px] text-[var(--muted)]">
+            <span
+              className="h-3 w-3 rounded-[4px] border"
+              style={{
+                background: TONE[k].bg,
+                borderColor: TONE[k].bd,
+                borderStyle: k === "vacant" ? "dashed" : "solid",
+              }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
 
       <UnitSheet unitId={openUnit} onClose={() => setOpenUnit(null)} />
 
@@ -180,52 +200,27 @@ export default function ApartmentsPage() {
   );
 }
 
-/** بطاقة الوحدة: الرقم بارز، الاسم تحته، والإيجار — والحالة شريط لوني رفيع. */
-function UnitTile({ unit, onOpen }: { unit: Unit; onOpen: (id: string) => void }) {
-  const { data } = useStore();
-  const { allow } = useAuth();
-  const { tenant } = tenantOfUnit(data, unit.id);
-  const c = unitColor(unit);
-
-  return (
-    <button
-      onClick={() => onOpen(unit.id)}
-      className="relative overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-right transition hover:border-[var(--line-strong)] active:scale-[.98]"
-    >
-      <span className="absolute inset-y-0 right-0 w-[3px]" style={{ background: c }} />
-      <div className="pr-1.5">
-        <div className="flex items-center justify-between gap-1">
-          <span className="num t-title leading-none">{unit.number}</span>
-          {unit.flagged && <Icon name="alert" size={12} strokeWidth={2.4} style={{ color: UNIT_COLOR.flagged }} />}
-        </div>
-        <p className="t-xs mt-1 truncate text-[var(--muted)]">
-          {tenant?.name ?? (unit.kind === "apartment" ? "شاغرة" : kindLabel[unit.kind])}
-        </p>
-        {allow("finance.view") && (
-          <Money v={unit.baseRent} size="xs" className="mt-0.5 text-[var(--ink-2)]" />
-        )}
-      </div>
-    </button>
-  );
-}
-
-function AddMenu({ onClose, onPick }: { onClose: () => void; onPick: (k: "single" | "bulk" | "floor") => void }) {
-  const items: [("single" | "bulk" | "floor"), string, string, string][] = [
-    ["single", "door", "وحدة واحدة", "رقمها ومساحتها وقيمة إيجارها"],
-    ["bulk", "box", "مجموعة وحدات", "مثال: اثنتا عشرة شقة في دور واحد"],
-    ["floor", "layers", "دور جديد", "إضافة دور إلى العقار"],
+function AddMenu({
+  onClose, onPick,
+}: { onClose: () => void; onPick: (k: "single" | "bulk" | "floor") => void }) {
+  const items = [
+    { k: "single" as const, icon: "grid" as const, title: "شقة واحدة", sub: "إضافة وحدة بتفاصيلها" },
+    { k: "bulk" as const, icon: "layers" as const, title: "عدة شقق دفعة واحدة", sub: "ترقيم تلقائي لدور كامل" },
+    { k: "floor" as const, icon: "building" as const, title: "دور جديد", sub: "إضافة دور إلى العمارة" },
   ];
   return (
-    <Sheet open onClose={onClose} title="ما الذي تريد إضافته؟">
+    <Sheet open onClose={onClose} title="إضافة">
       <div className="-mx-4 -my-3.5">
-        {items.map(([k, icon, title, sub]) => (
-          <button key={k} onClick={() => onPick(k)} className="row row-link">
-            <Icon name={icon} size={18} className="shrink-0 text-[var(--muted)]" />
-            <span className="flex-1">
-              <span className="block text-[13.5px] font-semibold">{title}</span>
-              <span className="t-xs block text-[var(--muted)]">{sub}</span>
+        {items.map((it) => (
+          <button key={it.k} onClick={() => onPick(it.k)} className="row row-link">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--primary-050)] text-[var(--primary)]">
+              <Icon name={it.icon} size={17} />
             </span>
-            <Icon name="chevronLeft" size={15} className="text-[var(--faint)]" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-semibold">{it.title}</span>
+              <span className="t-xs block text-[var(--muted)]">{it.sub}</span>
+            </span>
+            <Icon name="chevronLeft" size={15} className="shrink-0 text-[var(--faint)]" />
           </button>
         ))}
       </div>
