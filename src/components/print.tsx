@@ -301,7 +301,7 @@ export function ContractSheet({ f }: { f: ContractFields }) {
 }
 
 /** العقد معبَّأ من عقد مسجّل في النظام. */
-export function ContractDoc({ contract }: { contract: Contract }) {
+export function ContractDoc({ contract, signedAt }: { contract: Contract; signedAt?: string }) {
   const { data } = useStore();
   const tenant = data.tenants.find((t) => t.id === contract.tenantId);
   const { unit, floor, building } = useUnitCtx(contract.unitId);
@@ -327,7 +327,7 @@ export function ContractDoc({ contract }: { contract: Contract }) {
         deposit: contract.deposit,
         dueDay: contract.dueDay || data.settings.dueDay,
         occupants: contract.occupants ?? 0,
-        signedAt: contract.signedAt || contract.startDate,
+        signedAt: signedAt || contract.signedAt || contract.startDate,
       }}
     />
   );

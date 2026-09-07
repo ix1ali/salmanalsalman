@@ -4,14 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, scope } from "@/lib/selectors";
-import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num, thisPeriod } from "@/lib/format";
+import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num, thisPeriod, todayISO } from "@/lib/format";
 import {
-  Empty, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, useConfirm,
+  Empty, Field, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, TextInput, useConfirm,
 } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
 import { ContractForm, PaymentForm, TenantForm } from "@/components/forms";
-import { PrintOverlay, TenantStatementDoc, TenantsRegisterDoc } from "@/components/print";
+import {
+  ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, TenantStatementDoc, TenantsRegisterDoc,
+  receiptOfContract, receiptOfPayment,
+} from "@/components/print";
 
 type Tab = "all" | "unpaid";
 
@@ -164,6 +167,14 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
   const [printing, setPrinting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
 
+  /** الطباعة: تُختار الورقة أولًا ثم تاريخها، ثم تُعرض للطباعة. */
+  const [pick, setPick] = useState<null | "receipt" | "contract" | "eviction">(null);
+  const [doc, setDoc] = useState<null | "receipt" | "contract" | "eviction">(null);
+  const [rcMonth, setRcMonth] = useState(thisPeriod());
+  const [rcDate, setRcDate] = useState(todayISO());
+  const [ctDate, setCtDate] = useState(todayISO());
+  const [evDate, setEvDate] = useState(todayISO());
+
   const tenant = useMemo(() => data.tenants.find((t) => t.id === id) ?? null, [data.tenants, id]);
   const contracts = useMemo(
     () => data.contracts.filter((c) => c.tenantId === id).sort((a, b) => b.startDate.localeCompare(a.startDate)),
@@ -240,6 +251,28 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
               </button>
             )}
           </div>
+        )}
+
+        {/* الطباعة */}
+        {allow("reports.view") && active && (
+          <Panel title="الطباعة" className="mb-3" flush>
+            {([
+              ["receipt", "receipt", "طباعة الوصل", "تختار الشهر وتاريخ الوصل"],
+              ["contract", "file", "طباعة العقد", "تختار تاريخ تحرير العقد"],
+              ["eviction", "logout", "طباعة طلب الإخلاء", "تختار تاريخ الإخلاء"],
+            ] as const).map(([k, icon, title, sub]) => (
+              <button key={k} onClick={() => setPick(k)} className="row row-link">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--primary-050)] text-[var(--primary)]">
+                  <Icon name={icon} size={16} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-semibold">{title}</span>
+                  <span className="t-xs block text-[var(--muted)]">{sub}</span>
+                </span>
+                <Icon name="chevronLeft" size={15} className="shrink-0 text-[var(--faint)]" />
+              </button>
+            ))}
+          </Panel>
         )}
 
         {/* البيانات */}
@@ -356,6 +389,107 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
       )}
       <PrintOverlay open={printing} onClose={() => setPrinting(false)} fileTitle={`كشف حساب — ${tenant.name}`}>
         <TenantStatementDoc tenantId={tenant.id} />
+      </PrintOverlay>
+
+      {/* اختيار تاريخ الوصل وشهره */}
+      {pick === "receipt" && (
+        <Sheet
+          open onClose={() => setPick(null)} title="طباعة الوصل"
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={() => { setPick(null); setDoc("receipt"); }}>
+                <Icon name="print" size={15} /> عرض وطباعة
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPick(null)}>إلغاء</button>
+            </div>
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="عن شهر" required>
+              <TextInput type="month" value={rcMonth} onChange={(e) => setRcMonth(e.target.value)} />
+            </Field>
+            <Field label="تاريخ الوصل" hint="اتركه ليُكتب باليد إن شئت">
+              <TextInput type="date" value={rcDate} onChange={(e) => setRcDate(e.target.value)} />
+            </Field>
+          </div>
+          <p className="t-xs mt-3 rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">
+            إن كان الشهر مسدَّدًا يُطبع وصله المسجّل برقمه، وإلا يُطبع وصل بقيمة العقد للتوزيع.
+          </p>
+        </Sheet>
+      )}
+
+      {/* اختيار تاريخ تحرير العقد */}
+      {pick === "contract" && (
+        <Sheet
+          open onClose={() => setPick(null)} title="طباعة العقد"
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={() => { setPick(null); setDoc("contract"); }}>
+                <Icon name="print" size={15} /> عرض وطباعة
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPick(null)}>إلغاء</button>
+            </div>
+          }
+        >
+          <Field label="تاريخ تحرير العقد" required>
+            <TextInput type="date" value={ctDate} onChange={(e) => setCtDate(e.target.value)} />
+          </Field>
+          <p className="t-xs mt-3 rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">
+            مدة العقد المطبوعة هي {dateShort(active?.startDate)} — {dateShort(active?.endDate)}.
+          </p>
+        </Sheet>
+      )}
+
+      {/* اختيار تاريخ الإخلاء */}
+      {pick === "eviction" && (
+        <Sheet
+          open onClose={() => setPick(null)} title="طباعة طلب الإخلاء"
+          footer={
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={() => { setPick(null); setDoc("eviction"); }}>
+                <Icon name="print" size={15} /> عرض وطباعة
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPick(null)}>إلغاء</button>
+            </div>
+          }
+        >
+          <Field label="تاريخ الإخلاء" required>
+            <TextInput type="date" value={evDate} onChange={(e) => setEvDate(e.target.value)} />
+          </Field>
+          <p className="t-xs mt-3 rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">
+            خانات الاسم والرقم المدني والتوقيع تُطبع فارغة ليملأها المستأجر بخطّ يده.
+          </p>
+        </Sheet>
+      )}
+
+      <PrintOverlay
+        open={doc === "receipt"} onClose={() => setDoc(null)}
+        fileTitle={`وصل — ${tenant.name}`}
+      >
+        {active && (
+          <ReceiptSheet
+            f={{
+              ...(payments.find((p) => p.period === rcMonth)
+                ? receiptOfPayment(data, payments.find((p) => p.period === rcMonth)!)
+                : receiptOfContract(data, active, rcMonth)),
+              date: rcDate,
+            }}
+          />
+        )}
+      </PrintOverlay>
+
+      <PrintOverlay
+        open={doc === "contract"} onClose={() => setDoc(null)}
+        fileTitle={`عقد — ${tenant.name}`}
+      >
+        {active && <ContractDoc contract={active} signedAt={ctDate} />}
+      </PrintOverlay>
+
+      <PrintOverlay
+        open={doc === "eviction"} onClose={() => setDoc(null)}
+        fileTitle={`طلب إخلاء — ${tenant.name}`}
+      >
+        {active && <EvictionDoc unitId={active.unitId} tenantId={tenant.id} date={evDate} />}
       </PrintOverlay>
     </>
   );
