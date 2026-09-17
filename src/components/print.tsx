@@ -371,7 +371,7 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
   const { dinars, fils } = dinarsFils(f.amount);
 
   const S = compact
-    ? { title: 15, org: 10.5, sub: 8, label: 9.5, val: 10.5, pad: "4px 7px", boxH: 25, boxW: 62, num: 13, sig: 9.5 }
+    ? { title: 20, org: 13, sub: 9.5, label: 11.5, val: 13, pad: "10px 8px", boxH: 34, boxW: 84, num: 17, sig: 12 }
     : { title: 22, org: 14, sub: 10, label: 12.5, val: 13.5, pad: "8px 10px", boxH: 36, boxW: 92, num: 18, sig: 12.5 };
 
   const bd = `1.4px solid ${INK}`;
@@ -388,7 +388,7 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
   return (
     <div style={{ color: INK }}>
       {/* ------------------------------ الترويسة ------------------------------ */}
-      <div className="grid grid-cols-3 items-start gap-3" style={{ marginBottom: compact ? 10 : 18 }}>
+      <div className="grid grid-cols-3 items-start gap-3" style={{ marginBottom: compact ? 16 : 18 }}>
         <div className="text-right">
           <p style={{ fontSize: S.org, fontWeight: 800, lineHeight: 1.3 }}>{data.settings.orgName}</p>
           <p style={{ fontSize: S.sub, color: MUTED }}>عقاري / {data.settings.ownerFullName}</p>
@@ -404,7 +404,7 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
       </div>
 
       {/* --------------------------- المبلغ والتاريخ --------------------------- */}
-      <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: compact ? 8 : 14 }}>
+      <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: 14 }}>
         <span className="flex items-center gap-2">
           <span className="num" style={{ ...box, minWidth: Math.round(S.boxW * 0.62) }}>{fils ? num(fils) : NB}</span>
           <span style={{ fontSize: S.label, fontWeight: 700 }}>فلس</span>
@@ -420,12 +420,12 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
       {/* ------------------------------ بنود الوصل ------------------------------ */}
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <colgroup>
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "34%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "30%" }} />
           <col style={{ width: "10%" }} />
           <col style={{ width: "10.5%" }} />
           <col style={{ width: "13.5%" }} />
-          <col style={{ width: "17%" }} />
+          <col style={{ width: "22%" }} />
         </colgroup>
         <tbody>
           <tr>
@@ -471,9 +471,9 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
       </table>
 
       {/* ------------------------------- التوقيع ------------------------------- */}
-      <div style={{ marginTop: compact ? 20 : 44 }}>
+      <div style={{ marginTop: compact ? 28 : 44 }}>
         <p style={{ fontSize: S.sig, fontWeight: 700 }}>توقيع المستلم</p>
-        <p style={{ marginTop: compact ? 8 : 16, fontSize: S.sig, color: "#6f7f92", letterSpacing: 4 }}>
+        <p style={{ marginTop: compact ? 14 : 16, fontSize: S.sig, color: "#6f7f92", letterSpacing: 4 }}>
           . . . . . . . . . . . . . . . . . . . . . .
         </p>
       </div>
