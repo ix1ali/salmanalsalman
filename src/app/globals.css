@@ -253,9 +253,18 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   body.print-mode #print-portal > .print-sheet { max-width: none !important; padding: 14mm !important; border: 0 !important; }
   /* ورقة بلا حشو: تقيس أنصافها من حافة الصفحة تمامًا (وصلان في الصفحة) */
   body.print-mode #print-portal > .print-sheet.flush { padding: 0 !important; }
+  /* العقد ورقة A4 كاملة بهوامشها — صفحة واحدة بالضبط */
+  body.print-mode #print-portal > .print-sheet:has(.a4-page) { padding: 0 !important; }
+  .a4-scroll { overflow: visible !important; }
+  .a4-page { break-after: avoid; break-inside: avoid; }
   .card, .panel { box-shadow: none; border-color: #d7dee6; break-inside: avoid; }
 }
 .print-only { display: none; }
+
+/* ورقة العقد بمقاس A4 ثابت؛ على الشاشة الضيقة تُمرَّر أفقيًا بدل أن يتغيّر تخطيطها */
+.print-sheet:has(.a4-page) { padding: 0; max-width: calc(210mm + 2px); }
+.a4-scroll { overflow-x: auto; }
+.a4-page { margin-inline: auto; }
 
 /* منع تكبير الحقول تلقائيًا على iOS */
 @media (max-width: 640px) {
