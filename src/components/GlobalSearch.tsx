@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { Icon, type IconName } from "./Icons";
 import { Money } from "./ui";
-import { KWD, dateShort, monthAr, statusLabel } from "@/lib/format";
+import { dateShort, monthAr, statusLabel } from "@/lib/format";
 import { tenantOfUnit } from "@/lib/selectors";
 import UnitSheet from "./UnitSheet";
 

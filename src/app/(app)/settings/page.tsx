@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
-import { Field, KeyVal, PageHeader, Panel, TextInput, useConfirm } from "@/components/ui";
+import { Field, PageHeader, Panel, TextInput, useConfirm } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import PasswordForm from "@/components/PasswordForm";
 import { dateShort, num, roleLabel } from "@/lib/format";

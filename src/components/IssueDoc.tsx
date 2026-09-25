@@ -313,7 +313,6 @@ function ContractFormSheet({ onClose }: { onClose: () => void }) {
               <TextInput type="number" step="0.001" value={f.deposit || ""} onChange={(e) => set("deposit", +e.target.value)} />
             </Field>
             <Field label="يبدأ بتاريخ"><TextInput type="date" value={f.startDate} onChange={(e) => set("startDate", e.target.value)} /></Field>
-            <Field label="وينتهي بتاريخ"><TextInput type="date" value={f.endDate} onChange={(e) => set("endDate", e.target.value)} /></Field>
             <Field label="مدة العقد"><TextInput value={f.duration} onChange={(e) => set("duration", e.target.value)} /></Field>
             <Field label="عدد الساكنين">
               <TextInput type="number" min={0} value={f.occupants || ""} onChange={(e) => set("occupants", +e.target.value)} />

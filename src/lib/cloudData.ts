@@ -1,6 +1,7 @@
 "use client";
 
 import { sb } from "./cloud";
+import { OPEN_END, normalizeContract } from "./contracts";
 import type {
   AppData, AuditEntry, Building, Contract, ContractStatus, DocKind, DocMeta, Expense,
   ExpenseCategory, Floor, Memo, OwnerType, PayMethod, Payment, Role, Tenant, Unit,
@@ -124,7 +125,7 @@ const tenants: Coll<"tenants"> = {
 
 const contracts: Coll<"contracts"> = {
   key: "contracts", table: "contracts", order: { col: "created_at", asc: true },
-  fromRow: (r): Contract => ({
+  fromRow: (r): Contract => normalizeContract({
     id: str(r.id), no: str(r.no), buildingId: str(r.building_id), unitId: str(r.unit_id),
     tenantId: str(r.tenant_id), startDate: str(r.start_date), endDate: str(r.end_date),
     firstRentedAt: s(r.first_rented_at), signedAt: s(r.signed_at), durationText: s(r.duration_text),
@@ -135,7 +136,7 @@ const contracts: Coll<"contracts"> = {
   }),
   toRow: (c: Contract) => ({
     id: c.id, no: c.no, building_id: c.buildingId, unit_id: c.unitId, tenant_id: c.tenantId,
-    start_date: c.startDate, end_date: c.endDate, first_rented_at: c.firstRentedAt ?? null,
+    start_date: c.startDate, end_date: c.endDate || OPEN_END, first_rented_at: c.firstRentedAt ?? null,
     signed_at: c.signedAt ?? null, duration_text: c.durationText ?? null,
     occupants: c.occupants ?? null, rent: c.rent, deposit: c.deposit, due_day: c.dueDay,
     pay_method: c.payMethod, status: c.status, terms: c.terms ?? null, created_at: c.createdAt,

@@ -1,4 +1,5 @@
 import type { AppData, Contract, Expense, Payment, Tenant, Unit } from "./types";
+import { monthContracts, unitContract } from "./contracts";
 
 export interface Scope {
   units: Unit[];
@@ -41,35 +42,39 @@ export interface Arrear {
 }
 
 /**
- * الأشهر غير المسدَّدة لكل عقد ساري.
+ * الأشهر غير المسدَّدة — من قائمة الكشف المالي نفسها لكل شهر.
  *
  * لا تُحتسب أي متأخرات قبل `settings.trackingStartPeriod` — وهو الشهر الذي بدأ
  * فيه استخدام النظام — حتى لا تظهر مطالبات عن فترة كانت تُدار على الورق.
  */
 export function arrears(data: AppData, s: Scope, lookback = 24): Arrear[] {
-  const now = new Date();
   const from = data.settings.trackingStartPeriod ?? "0000-00";
-  const periods = lastPeriods(lookback, now).filter((p) => p >= from);
+  const periods = lastPeriods(lookback).filter((p) => p >= from);
   const paidKey = new Set(s.payments.map((p) => `${p.contractId ?? p.unitId}|${p.period}`));
   const unitById = new Map(data.units.map((u) => [u.id, u]));
   const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
 
-  const out: Arrear[] = [];
-  for (const c of s.contracts) {
-    if (c.status === "terminated") continue;
-    const start = c.startDate.slice(0, 7);
-    const end = c.endDate.slice(0, 7);
-    const missing = periods.filter((p) => p >= start && p <= end && !paidKey.has(`${c.id}|${p}`));
-    if (!missing.length) continue;
-    out.push({
-      contract: c,
-      unit: unitById.get(c.unitId),
-      tenant: tenantById.get(c.tenantId),
-      missing,
-      amount: missing.length * c.rent,
-    });
+  const byContract = new Map<string, Arrear>();
+  for (const p of periods) {
+    for (const c of monthContracts(s.contracts, p)) {
+      if (paidKey.has(`${c.id}|${p}`)) continue;
+      const a = byContract.get(c.id)
+        ?? { contract: c, unit: unitById.get(c.unitId), tenant: tenantById.get(c.tenantId), missing: [], amount: 0 };
+      a.missing.push(p);
+      a.amount += c.rent;
+      byContract.set(c.id, a);
+    }
   }
-  return out.sort((a, b) => b.amount - a.amount);
+  return [...byContract.values()].sort((a, b) => b.amount - a.amount);
+}
+
+/** مجموع المتأخرات لمجموعة عقود (نسخ عقد الشقة أو المستأجر) مرتّبة بالشهر. */
+export function arrearsOf(list: Arrear[], match: (c: Contract) => boolean) {
+  const hit = list.filter((a) => match(a.contract));
+  return {
+    amount: hit.reduce((x, a) => x + a.amount, 0),
+    missing: hit.flatMap((a) => a.missing).sort(),
+  };
 }
 
 export interface Kpis {
@@ -85,7 +90,6 @@ export interface Kpis {
   netThisMonth: number;
   arrearsTotal: number;
   arrearsCount: number;
-  expiringSoon: number;
   flaggedUnits: number;
   tenantsCount: number;
 }
@@ -93,17 +97,11 @@ export interface Kpis {
 export function kpis(data: AppData, buildingId: string): Kpis {
   const s = scope(data, buildingId);
   const p = periodOf(new Date());
-  const active = s.contracts.filter((c) => c.status === "active");
+  const active = monthContracts(s.contracts, p);
   const monthlyRentRoll = active.reduce((a, c) => a + c.rent, 0);
   const collectedThisMonth = s.payments.filter((x) => x.period === p).reduce((a, x) => a + x.amount, 0);
   const expensesThisMonth = s.expenses.filter((e) => e.date.slice(0, 7) === p).reduce((a, e) => a + e.amount, 0);
   const ar = arrears(data, s);
-  const alertDays = data.settings.contractAlertDays;
-  const now = Date.now();
-  const expiringSoon = active.filter((c) => {
-    const d = new Date(c.endDate).getTime() - now;
-    return d >= 0 && d <= alertDays * 86400000;
-  }).length;
 
   const by = (st: Unit["status"]) => s.units.filter((u) => u.status === st).length;
   const totalUnits = s.units.length;
@@ -122,7 +120,6 @@ export function kpis(data: AppData, buildingId: string): Kpis {
     netThisMonth: collectedThisMonth - expensesThisMonth,
     arrearsTotal: ar.reduce((a, x) => a + x.amount, 0),
     arrearsCount: ar.length,
-    expiringSoon,
     flaggedUnits: s.units.filter((u) => u.flagged).length,
     tenantsCount: new Set(active.map((c) => c.tenantId)).size,
   };
@@ -171,16 +168,15 @@ export function floorStats(data: AppData, buildingId: string): FloorStat[] {
 }
 
 export function tenantOfUnit(data: AppData, unitId: string) {
-  const c = data.contracts.find((x) => x.unitId === unitId && x.status === "active")
-    ?? data.contracts.find((x) => x.unitId === unitId);
+  const c = unitContract(data, unitId);
   if (!c) return { contract: undefined, tenant: undefined };
   return { contract: c, tenant: data.tenants.find((t) => t.id === c.tenantId) };
 }
 
+/** متأخرات الشقة بكل نسخ عقودها. */
 export function unitBalance(data: AppData, unitId: string) {
-  const { contract } = tenantOfUnit(data, unitId);
-  if (!contract) return { due: 0, missing: [] as string[] };
-  const s = scope(data, contract.buildingId);
-  const a = arrears(data, s).find((x) => x.contract.id === contract.id);
-  return { due: a?.amount ?? 0, missing: a?.missing ?? [] };
+  const unit = data.units.find((u) => u.id === unitId);
+  if (!unit) return { due: 0, missing: [] as string[] };
+  const r = arrearsOf(arrears(data, scope(data, unit.buildingId)), (c) => c.unitId === unitId);
+  return { due: r.amount, missing: r.missing };
 }

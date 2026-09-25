@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { arrears, scope } from "@/lib/selectors";
-import { KWD, dateShort, methodLabel, monthAr, monthsLabel, num, thisPeriod, todayISO } from "@/lib/format";
+import { arrears, arrearsOf, scope } from "@/lib/selectors";
+import { covers, isOpen, monthContracts, removeContract } from "@/lib/contracts";
+import ContractEditor from "@/components/ContractEditor";
+import { KWD, methodLabel, monthAr, monthsLabel, num, thisPeriod, todayISO } from "@/lib/format";
 import {
   Empty, Field, Filters, KeyVal, Money, PageHeader, Panel, SearchBox, Sheet, TextInput, useConfirm,
 } from "@/components/ui";
 import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
-import { ContractForm, PaymentForm, TenantForm } from "@/components/forms";
+import { PaymentForm, TenantForm } from "@/components/forms";
 import {
   ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, TenantStatementDoc, TenantsRegisterDoc,
   receiptOfContract, receiptOfPayment,
@@ -34,39 +36,38 @@ export default function TenantsPage() {
 
   const s = useMemo(() => scope(data, activeBuilding), [data, activeBuilding]);
 
-  const activeIds = useMemo(
-    () => new Set(s.contracts.filter((c) => c.status === "active").map((c) => c.tenantId)),
-    [s.contracts]
-  );
+  /** مستأجرو هذا الشهر — نفس قائمة الكشف المالي. */
+  const current = useMemo(() => monthContracts(s.contracts, thisPeriod()), [s.contracts]);
+  const activeIds = useMemo(() => new Set(current.map((c) => c.tenantId)), [current]);
 
   // «لم يُسدَّد» = عقد ساري بلا دفعة مسجّلة لهذا الشهر — نفس تعريف الكشف المالي
   const unpaidIds = useMemo(() => {
     const p = thisPeriod();
     const paid = new Set(s.payments.filter((x) => x.period === p).map((x) => x.contractId));
-    return new Set(
-      s.contracts.filter((c) => c.status === "active" && !paid.has(c.id)).map((c) => c.tenantId)
-    );
-  }, [s.contracts, s.payments]);
+    return new Set(current.filter((c) => !paid.has(c.id)).map((c) => c.tenantId));
+  }, [current, s.payments]);
 
   /** لكل مستأجر: رقم شقته وقيمة إيجارها — وهذا كل ما تعرضه القائمة. */
   const unitOf = useMemo(() => {
     const m = new Map<string, string>();
-    s.contracts.filter((c) => c.status === "active").forEach((c) => {
+    current.forEach((c) => {
       const u = data.units.find((x) => x.id === c.unitId);
       if (u) m.set(c.tenantId, u.number);
     });
     return m;
-  }, [s.contracts, data.units]);
+  }, [current, data.units]);
 
   const rentOf = useMemo(() => {
     const m = new Map<string, number>();
-    s.contracts.filter((c) => c.status === "active").forEach((c) => m.set(c.tenantId, c.rent));
+    current.forEach((c) => m.set(c.tenantId, c.rent));
     return m;
-  }, [s.contracts]);
+  }, [current]);
 
   const list = useMemo(() => {
     const n = q.trim().toLowerCase();
-    let base = activeBuilding === "all" ? data.tenants : data.tenants.filter((t) => s.tenantIds.has(t.id));
+    // مستأجرو هذا الشهر، ومن أُضيف بلا شقة بعد — النسخ القديمة تبقى في أشهرها فقط
+    const withContract = new Set(s.contracts.map((c) => c.tenantId));
+    let base = s.tenants.filter((t) => activeIds.has(t.id) || (!withContract.has(t.id) && t.active));
     if (tab === "unpaid") base = base.filter((t) => unpaidIds.has(t.id));
     if (n) base = base.filter((t) =>
       t.name.toLowerCase().includes(n) || t.phone.includes(n) ||
@@ -77,7 +78,7 @@ export default function TenantsPage() {
       const ua = unitOf.get(a.id) ?? "zz", ub = unitOf.get(b.id) ?? "zz";
       return ua.localeCompare(ub, "ar", { numeric: true });
     });
-  }, [data.tenants, s.tenantIds, activeBuilding, tab, q, unpaidIds, unitOf]);
+  }, [s.tenants, s.contracts, activeIds, tab, q, unpaidIds, unitOf]);
 
   return (
     <div className="space-y-3">
@@ -106,7 +107,7 @@ export default function TenantsPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: "all", label: "الكل", count: activeBuilding === "all" ? data.tenants.length : s.tenants.length },
+            { value: "all", label: "الكل", count: activeIds.size },
             ...(allow("finance.view")
               ? [{ value: "unpaid" as const, label: `لم يُسدَّد ${monthAr(thisPeriod()).split(" ")[0]}`, count: unpaidIds.size }]
               : []),
@@ -145,7 +146,7 @@ export default function TenantsPage() {
         </div>
       )}
 
-      {adding && <TenantForm open onClose={() => setAdding(false)} />}
+      {adding && <ContractEditor period={thisPeriod()} onClose={() => setAdding(false)} />}
       <TenantSheet id={openId} onClose={() => setOpenId(null)} />
 
       <PrintOverlay open={printRegister} onClose={() => setPrintRegister(false)} fileTitle="سجل المستأجرين">
@@ -162,7 +163,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
   const { user, allow } = useAuth();
   const { confirm, dialog } = useConfirm();
   const [editing, setEditing] = useState(false);
-  const [newContract, setNewContract] = useState(false);
+  const [editContract, setEditContract] = useState(false);
   const [newPayment, setNewPayment] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
@@ -184,21 +185,36 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
     () => data.payments.filter((p) => p.tenantId === id).sort((a, b) => b.period.localeCompare(a.period)),
     [data.payments, id]
   );
-  const active = contracts.find((c) => c.status === "active");
+  const active = contracts.find((c) => covers(c, thisPeriod())) ?? contracts.find(isOpen);
   const unit = data.units.find((u) => u.id === active?.unitId);
   const building = data.buildings.find((b) => b.id === active?.buildingId);
 
   const due = useMemo(() => {
-    if (!active) return { amount: 0, missing: [] as string[] };
-    const a = arrears(data, scope(data, active.buildingId)).find((x) => x.contract.id === active.id);
-    return { amount: a?.amount ?? 0, missing: a?.missing ?? [] };
-  }, [data, active]);
+    const t = data.tenants.find((x) => x.id === id);
+    if (!t) return { amount: 0, missing: [] as string[] };
+    const r = arrearsOf(arrears(data, scope(data, t.buildingId || "all")), (c) => c.tenantId === t.id);
+    return { amount: r.amount, missing: r.missing };
+  }, [data, id]);
 
   if (!tenant) return null;
   const totalPaid = payments.reduce((a, p) => a + p.amount, 0);
 
   const remove = async () => {
-    if (!(await confirm("حذف المستأجر", `سيتم حذف ${tenant.name} وجميع عقوده ودفعاته.`))) return;
+    // له شقة: يُحذف من هذا الشهر وما بعده وتبقى أشهره السابقة كما هي
+    if (active) {
+      const p = thisPeriod();
+      const ok = await confirm(
+        "حذف المستأجر",
+        `يُحذف ${tenant.name} ابتداءً من ${monthAr(p)} وما بعده وتصبح شقته شاغرة. الأشهر السابقة تبقى كما هي.`
+      );
+      if (!ok) return;
+      update((d) => removeContract(d, active.id, p), {
+        action: "حذف مستأجر", detail: `${tenant.name} — من ${monthAr(p)}`, actor: user?.username,
+      });
+      onClose();
+      return;
+    }
+    if (!(await confirm("حذف المستأجر", `سيتم حذف ${tenant.name} وجميع سجلاته ودفعاته.`))) return;
     update((d) => {
       const unitIds = d.contracts.filter((c) => c.tenantId === tenant.id).map((c) => c.unitId);
       d.tenants = d.tenants.filter((t) => t.id !== tenant.id);
@@ -221,9 +237,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
               <span className="t-xs mr-1.5 font-normal text-[var(--muted)]">{building?.name}</span>
             </p>
             {active && (
-              <p className="t-xs mt-0.5 text-[var(--muted)]">
-                العقد {dateShort(active.startDate)} — {dateShort(active.endDate)}
-              </p>
+              <p className="t-xs mt-0.5 text-[var(--muted)]">منذ {monthAr(active.startDate.slice(0, 7))}</p>
             )}
           </div>
           {allow("finance.view") && (
@@ -331,7 +345,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
         )}
 
         {/* العقود */}
-        <Panel title={`العقود (${num(contracts.length)})`} className="mb-3" flush>
+        <Panel title={`السجل (${num(contracts.length)})`} className="mb-3" flush>
           {contracts.length ? contracts.map((c) => {
             const u = data.units.find((x) => x.id === c.unitId);
             return (
@@ -341,13 +355,15 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12.5px] font-semibold">{c.no} · {KWD(c.rent)}</span>
-                  <span className="t-xs block text-[var(--muted)]">{dateShort(c.startDate)} — {dateShort(c.endDate)}</span>
+                  <span className="t-xs block text-[var(--muted)]">
+                    {monthAr(c.startDate.slice(0, 7))} — {isOpen(c) ? "الآن" : monthAr(c.endDate.slice(0, 7))}
+                  </span>
                 </span>
                 <span className="tag" style={
-                  c.status === "active" ? { background: "var(--ok-050)", color: "var(--ok)" }
+                  isOpen(c) ? { background: "var(--ok-050)", color: "var(--ok)" }
                     : { background: "var(--steel-050)", color: "var(--steel)" }
                 }>
-                  {c.status === "active" ? "ساري" : c.status === "expired" ? "منتهي" : c.status === "terminated" ? "مفسوخ" : "قادم"}
+                  {isOpen(c) ? "ساري" : "سابق"}
                 </span>
               </div>
             );
@@ -370,11 +386,10 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
         )}
 
         <div className="flex flex-wrap gap-2">
-          {allow("tenants.edit") && (
+          {active && allow("contracts.edit") ? (
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditContract(true)}><Icon name="edit" size={13} /> تعديل</button>
+          ) : allow("tenants.edit") && (
             <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}><Icon name="edit" size={13} /> تعديل</button>
-          )}
-          {allow("contracts.edit") && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setNewContract(true)}><Icon name="file" size={13} /> عقد جديد</button>
           )}
           {allow("tenants.edit") && (
             <button className="btn btn-danger btn-sm mr-auto" onClick={remove}><Icon name="trash" size={13} /> حذف</button>
@@ -383,7 +398,9 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
       </Sheet>
 
       {editing && <TenantForm open onClose={() => setEditing(false)} tenant={tenant} />}
-      {newContract && <ContractForm open onClose={() => setNewContract(false)} />}
+      {editContract && active && (
+        <ContractEditor contract={active} period={thisPeriod()} onClose={() => setEditContract(false)} />
+      )}
       {newPayment !== null && active && (
         <PaymentForm open onClose={() => setNewPayment(null)} presetContractId={active.id} presetPeriod={newPayment || undefined} />
       )}
@@ -434,9 +451,6 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
           <Field label="تاريخ تحرير العقد" required>
             <TextInput type="date" value={ctDate} onChange={(e) => setCtDate(e.target.value)} />
           </Field>
-          <p className="t-xs mt-3 rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">
-            مدة العقد المطبوعة هي {dateShort(active?.startDate)} — {dateShort(active?.endDate)}.
-          </p>
         </Sheet>
       )}
 

@@ -6,10 +6,11 @@ import { useStore } from "@/lib/store";
 import { Icon, Logo } from "./Icons";
 import {
   KWD, amount, amountInWords, dateAr, dateShort, dinarsFils, expenseLabel,
-  methodLabel, monthAr, num, pct,
+  methodLabel, monthAr, num, pct, thisPeriod,
 } from "@/lib/format";
 import type { AppData, Contract, Payment, Unit } from "@/lib/types";
-import { arrears, scope } from "@/lib/selectors";
+import { arrears, arrearsOf, scope } from "@/lib/selectors";
+import { covers, isOpen, monthContracts } from "@/lib/contracts";
 
 const INK = "#0b2545";
 const NAVY = "#123a6b";
@@ -400,7 +401,7 @@ export function ContractDoc({ contract, signedAt }: { contract: Contract; signed
         unitNo: unit?.number ?? "",
         duration: contract.durationText || "سنة",
         startDate: contract.startDate,
-        endDate: contract.endDate,
+        endDate: "",
         rent: contract.rent,
         deposit: contract.deposit,
         dueDay: contract.dueDay || data.settings.dueDay,
@@ -706,10 +707,12 @@ export function TenantStatementDoc({ tenantId }: { tenantId: string }) {
   const tenant = data.tenants.find((t) => t.id === tenantId);
   const contracts = data.contracts.filter((c) => c.tenantId === tenantId);
   const payments = data.payments.filter((p) => p.tenantId === tenantId).sort((a, b) => a.period.localeCompare(b.period));
-  const active = contracts.find((c) => c.status === "active");
+  const active = contracts.find((c) => covers(c, thisPeriod())) ?? contracts.find(isOpen);
   const unit = data.units.find((u) => u.id === active?.unitId) as Unit | undefined;
   const building = data.buildings.find((b) => b.id === active?.buildingId);
-  const due = active ? arrears(data, scope(data, active.buildingId)).find((a) => a.contract.id === active.id) : undefined;
+  const due = tenant
+    ? arrearsOf(arrears(data, scope(data, tenant.buildingId || "all")), (c) => c.tenantId === tenantId)
+    : undefined;
   const total = payments.reduce((a, p) => a + p.amount, 0);
 
   return (
@@ -729,7 +732,7 @@ export function TenantStatementDoc({ tenantId }: { tenantId: string }) {
         <div>
           <Row k="العقار / الوحدة" v={`${building?.name ?? "—"} — ${unit?.number ?? "—"}`} />
           <Row k="القيمة الإيجارية الشهرية" v={active ? KWD(active.rent) : "—"} />
-          <Row k="مدة العقد" v={active ? `${dateShort(active.startDate)} — ${dateShort(active.endDate)}` : "—"} />
+          <Row k="منذ" v={active ? monthAr(active.startDate.slice(0, 7)) : "—"} />
         </div>
       </div>
 
@@ -790,7 +793,7 @@ export function BuildingStatementDoc({ buildingId, period }: { buildingId: strin
   const expenses = s.expenses.filter((e) => e.date.slice(0, 7) === period).sort((a, b) => a.date.localeCompare(b.date));
   const income = payments.reduce((a, p) => a + p.amount, 0);
   const outgo = expenses.reduce((a, e) => a + e.amount, 0);
-  const expected = s.contracts.filter((c) => c.status === "active").reduce((a, c) => a + c.rent, 0);
+  const expected = monthContracts(s.contracts, period).reduce((a, c) => a + c.rent, 0);
   const unitById = new Map(data.units.map((u) => [u.id, u]));
   const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
 
@@ -906,8 +909,7 @@ export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
   const floorById = new Map(data.floors.map((f) => [f.id, f]));
   const tenantById = new Map(data.tenants.map((t) => [t.id, t]));
 
-  const rows = data.contracts
-    .filter((c) => c.buildingId === buildingId && c.status === "active")
+  const rows = monthContracts(data.contracts.filter((c) => c.buildingId === buildingId), thisPeriod())
     .map((c) => ({ c, unit: data.units.find((u) => u.id === c.unitId), tenant: tenantById.get(c.tenantId) }))
     .sort((a, b) => (a.unit?.number ?? "").localeCompare(b.unit?.number ?? "", "ar", { numeric: true }));
 
@@ -929,7 +931,7 @@ export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
       <table className="w-full border-collapse text-[11px]">
         <thead>
           <tr style={{ background: "#edf3fb", color: NAVY }}>
-            {["م", "الدور", "الشقة", "اسم المستأجر", "الرقم المدني", "الجنسية", "الهاتف", "من", "إلى"].map((h) => (
+            {["م", "الدور", "الشقة", "اسم المستأجر", "الرقم المدني", "الجنسية", "الهاتف", "منذ"].map((h) => (
               <th key={h} className="border p-1.5 text-right" style={{ borderColor: LINE }}>{h}</th>
             ))}
             <th className="border p-1.5 text-left" style={{ borderColor: LINE }}>الإيجار (د.ك)</th>
@@ -945,15 +947,14 @@ export function TenantsRegisterDoc({ buildingId }: { buildingId: string }) {
               <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.civilId ?? "—"}</td>
               <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.nationality ?? "—"}</td>
               <td className="border p-1.5" style={{ borderColor: LINE }}>{r.tenant?.phone ?? "—"}</td>
-              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(r.c.startDate)}</td>
-              <td className="border p-1.5" style={{ borderColor: LINE }}>{dateShort(r.c.endDate)}</td>
+              <td className="border p-1.5" style={{ borderColor: LINE }}>{monthAr(r.c.startDate.slice(0, 7))}</td>
               <td className="border p-1.5 text-left font-bold tabular-nums" style={{ borderColor: LINE }}>{amount(r.c.rent)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-extrabold" style={{ background: "#f9fbfd" }}>
-            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={9}>
+            <td className="border p-1.5" style={{ borderColor: LINE }} colSpan={8}>
               إجمالي الإيجار الشهري — {num(rows.length)} وحدة مؤجرة
             </td>
             <td className="border p-1.5 text-left tabular-nums" style={{ borderColor: LINE }}>{amount(total)}</td>
@@ -1024,12 +1025,13 @@ export function CollectionSheetDoc({ buildingId, period }: { buildingId: string;
     data.payments.filter((p) => p.period === period && p.buildingId === buildingId).map((p) => p.contractId ?? p.unitId)
   );
 
+  const byUnit = new Map(monthContracts(data.contracts.filter((c) => c.buildingId === buildingId), period).map((c) => [c.unitId, c]));
   const rows = floors.flatMap((f) =>
     data.units
       .filter((u) => u.floorId === f.id)
       .sort((a, b) => a.number.localeCompare(b.number, "ar", { numeric: true }))
       .map((u) => {
-        const c = data.contracts.find((x) => x.unitId === u.id && x.status === "active");
+        const c = byUnit.get(u.id);
         return { floor: f.name, unit: u.number, tenant: c ? tenantById.get(c.tenantId)?.name : undefined, rent: c?.rent ?? 0, done: c ? paid.has(c.id) : false, rented: !!c };
       })
   );

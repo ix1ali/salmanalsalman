@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
 import { scope } from "@/lib/selectors";
 import { markPaid, unmarkPaid } from "@/lib/payments";
+import { monthContracts, removeContract } from "@/lib/contracts";
+import ContractEditor from "@/components/ContractEditor";
 import {
   EXPENSE_ORDER, KWD, amount, dateShort, expenseLabel, methodLabel, monthAr, num, thisPeriod,
 } from "@/lib/format";
@@ -39,6 +41,8 @@ export default function FinancesPage() {
   const [doc, setDoc] = useState<Doc | null>(null);
   const [addExpense, setAddExpense] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  /** نموذج المستأجر: عقد للتعديل، أو وحدة لإضافة مستأجر عليها ("" = يختار الوحدة). */
+  const [editing, setEditing] = useState<{ c?: Contract; unitId?: string } | null>(null);
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
@@ -52,7 +56,9 @@ export default function FinancesPage() {
   const tenantById = useMemo(() => new Map(data.tenants.map((t) => [t.id, t])), [data.tenants]);
   const floorById = useMemo(() => new Map(data.floors.map((f) => [f.id, f])), [data.floors]);
 
-  /* ------------------ صفوف الشهر: كل عقد ساري ومعه حالة سداده ------------------ */
+  /* ---------- صفوف الشهر: كل مستأجر في هذا الشهر ومعه حالة سداده ---------- */
+  const monthly = useMemo(() => monthContracts(s.contracts, period), [s.contracts, period]);
+
   const groups = useMemo(() => {
     const paidMap = new Map(s.payments.filter((p) => p.period === period).map((p) => [p.contractId ?? p.unitId, p]));
     const floors = data.floors
@@ -62,14 +68,13 @@ export default function FinancesPage() {
     return floors
       .map((f) => ({
         floor: f,
-        rows: s.contracts
-          .filter((c) => c.status === "active" && unitById.get(c.unitId)?.floorId === f.id)
-          .filter((c) => c.startDate.slice(0, 7) <= period && c.endDate.slice(0, 7) >= period)
+        rows: monthly
+          .filter((c) => unitById.get(c.unitId)?.floorId === f.id)
           .map((c) => ({ c, unit: unitById.get(c.unitId), tenant: tenantById.get(c.tenantId), payment: paidMap.get(c.id) }))
           .sort((a, b) => (a.unit?.number ?? "").localeCompare(b.unit?.number ?? "", "ar", { numeric: true })),
       }))
       .filter((g) => g.rows.length);
-  }, [s.contracts, s.payments, data.floors, activeBuilding, period, unitById, tenantById]);
+  }, [monthly, s.payments, data.floors, activeBuilding, period, unitById, tenantById]);
 
   const rows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
 
@@ -120,12 +125,27 @@ export default function FinancesPage() {
     [rows, data, period]
   );
 
-  /* --------------------------------- عقود --------------------------------- */
-  const contracts = useMemo(
-    () => s.contracts.filter((c) => c.status === "active").sort((a, b) =>
-      (unitById.get(a.unitId)?.number ?? "").localeCompare(unitById.get(b.unitId)?.number ?? "", "ar", { numeric: true })),
-    [s.contracts, unitById]
-  );
+  /* ------------------ العقود: كل شقة في هذا الشهر، مؤجَّرة أو شاغرة ------------------ */
+  const unitRows = useMemo(() => {
+    const byUnit = new Map(monthly.map((c) => [c.unitId, c]));
+    return s.units
+      .map((u) => ({ u, c: byUnit.get(u.id) }))
+      .sort((a, b) => a.u.number.localeCompare(b.u.number, "ar", { numeric: true }));
+  }, [monthly, s.units]);
+
+  const removeTenant = async (c: Contract) => {
+    const unitNo = unitById.get(c.unitId)?.number ?? "";
+    const name = tenantById.get(c.tenantId)?.name ?? "";
+    const ok = await confirm(
+      "حذف المستأجر",
+      `يُحذف ${name} من شقة ${unitNo} ابتداءً من ${monthAr(period)} وما بعده، وتصبح الشقة شاغرة. الأشهر السابقة تبقى كما هي.`
+    );
+    if (!ok) return;
+    update((d) => removeContract(d, c.id, period), {
+      action: "حذف مستأجر", detail: `${unitNo} — ${name} — من ${monthAr(period)}`, actor: user?.username,
+    });
+    toast("تم الحذف");
+  };
 
   /* ------------------------------- مصروفات -------------------------------- */
   const expenses = useMemo(
@@ -275,7 +295,7 @@ export default function FinancesPage() {
             <div className="card">
               <Empty
                 icon="checkCircle"
-                title={filter === "unpaid" ? "تم تحصيل كامل إيجارات الشهر" : "لا توجد عقود سارية في هذا الشهر"}
+                title={filter === "unpaid" ? "تم تحصيل كامل إيجارات الشهر" : "لا يوجد مستأجرون في هذا الشهر"}
               />
             </div>
           )}
@@ -326,7 +346,7 @@ export default function FinancesPage() {
             </div>
           ) : (
             <div className="card">
-              <Empty icon="receipt" title={`لا توجد عقود سارية في ${monthAr(period)}`} />
+              <Empty icon="receipt" title={`لا يوجد مستأجرون في ${monthAr(period)}`} />
             </div>
           )}
         </>
@@ -334,23 +354,55 @@ export default function FinancesPage() {
 
       {/* =============================== العقود =============================== */}
       {tab === "contracts" && (
-        <div className="panel">
-          {contracts.length ? contracts.map((c) => (
-            <button key={c.id} onClick={() => setDoc({ k: "contract", c })} className="row row-link">
-              <span className="num min-w-[34px] shrink-0 text-[12.5px] font-bold text-[var(--ink-2)]">
-                {unitById.get(c.unitId)?.number}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-semibold">{tenantById.get(c.tenantId)?.name ?? "—"}</span>
-                <span className="t-xs block text-[var(--muted)]">
-                  {floorById.get(unitById.get(c.unitId)?.floorId ?? "")?.name} · ينتهي {dateShort(c.endDate)}
-                </span>
-              </span>
-              <Money v={c.rent} size="sm" className="shrink-0" />
-              <Icon name="print" size={14} className="shrink-0 text-[var(--faint)]" />
+        <>
+          {allow("contracts.edit") && (
+            <button className="btn btn-primary w-full" onClick={() => setEditing({})}>
+              <Icon name="plus" size={15} /> إضافة مستأجر
             </button>
-          )) : <Empty icon="file" title="لا توجد عقود سارية" />}
-        </div>
+          )}
+          <p className="t-xs px-1 text-[var(--muted)]">
+            مستأجرو {monthAr(period)}. أي تعديل يسري من هذا الشهر وما بعده، والأشهر السابقة تبقى كما هي.
+          </p>
+          <div className="panel">
+            {unitRows.length ? unitRows.map(({ u, c }) => (
+              <div key={u.id} className="row">
+                <span className="num min-w-[34px] shrink-0 text-[12.5px] font-bold text-[var(--ink-2)]">{u.number}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-[13.5px] font-semibold ${c ? "" : "text-[var(--faint)]"}`}>
+                    {c ? tenantById.get(c.tenantId)?.name ?? "—" : "شاغرة"}
+                  </span>
+                  <span className="t-xs block text-[var(--muted)]">{floorById.get(u.floorId)?.name}</span>
+                </span>
+                {c && <Money v={c.rent} size="sm" className="shrink-0" />}
+                <span className="flex shrink-0 gap-0.5">
+                  {c ? (
+                    <>
+                      {allow("contracts.edit") && (
+                        <button className="btn btn-icon btn-ghost !border-transparent !bg-transparent !p-1.5" onClick={() => setEditing({ c })} aria-label="تعديل">
+                          <Icon name="edit" size={15} />
+                        </button>
+                      )}
+                      {allow("reports.view") && (
+                        <button className="btn btn-icon btn-ghost !border-transparent !bg-transparent !p-1.5" onClick={() => setDoc({ k: "contract", c })} aria-label="طباعة العقد">
+                          <Icon name="print" size={15} />
+                        </button>
+                      )}
+                      {allow("contracts.edit") && (
+                        <button className="btn btn-icon btn-ghost !border-transparent !bg-transparent !p-1.5 text-[var(--danger)]" onClick={() => removeTenant(c)} aria-label="حذف">
+                          <Icon name="trash" size={15} />
+                        </button>
+                      )}
+                    </>
+                  ) : allow("contracts.edit") && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ unitId: u.id })}>
+                      <Icon name="plus" size={13} /> إضافة
+                    </button>
+                  )}
+                </span>
+              </div>
+            )) : <Empty icon="file" title="لا توجد شقق في هذا العقار" />}
+          </div>
+        </>
       )}
 
       {/* ============================== المصروفات ============================== */}
@@ -442,6 +494,9 @@ export default function FinancesPage() {
         {doc?.k === "contract" && <ContractDoc contract={doc.c} />}
       </PrintOverlay>
 
+      {editing && (
+        <ContractEditor contract={editing.c} unitId={editing.unitId} period={period} onClose={() => setEditing(null)} />
+      )}
       {addExpense && <ExpenseForm open onClose={() => setAddExpense(false)} />}
       {editExpense && <ExpenseForm open onClose={() => setEditExpense(null)} expense={editExpense} />}
     </div>

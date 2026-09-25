@@ -5,7 +5,8 @@ import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { arrears, kpis, lastPeriods, scope } from "@/lib/selectors";
-import { amount, dateShort, monthAr, monthsLabel, num, thisPeriod } from "@/lib/format";
+import { monthContracts } from "@/lib/contracts";
+import { amount, monthAr, monthsLabel, num, thisPeriod } from "@/lib/format";
 import { Money } from "@/components/ui";
 import { Gauge } from "@/components/Charts";
 import { Icon, type IconName } from "@/components/Icons";
@@ -30,22 +31,10 @@ export default function DashboardPage() {
   // الصورة تخصّ العقار المفتوح وحده
   const photo = useBuildingPhoto(building?.photo);
 
-  const expiring = useMemo(() => {
-    const now = Date.now();
-    const lim = data.settings.contractAlertDays * 86400000;
-    return s.contracts
-      .filter((c) => c.status === "active")
-      .map((c) => ({ c, left: new Date(c.endDate).getTime() - now }))
-      .filter((x) => x.left >= 0 && x.left <= lim)
-      .sort((a, b) => a.left - b.left);
-  }, [s.contracts, data.settings.contractAlertDays]);
-
   const trend = useMemo(
     () =>
       lastPeriods(6).map((p) => {
-        const due = s.contracts
-          .filter((c) => c.status !== "terminated" && c.startDate.slice(0, 7) <= p && c.endDate.slice(0, 7) >= p)
-          .reduce((a, c) => a + c.rent, 0);
+        const due = monthContracts(s.contracts, p).reduce((a, c) => a + c.rent, 0);
         const got = s.payments.filter((x) => x.period === p).reduce((a, x) => a + x.amount, 0);
         return { period: p, rate: due ? Math.min(100, (got / due) * 100) : 0 };
       }),
@@ -58,7 +47,7 @@ export default function DashboardPage() {
   const greet = hour < 5 ? "مساء الخير" : hour < 12 ? "صباح الخير" : hour < 17 ? "طاب يومك" : "مساء الخير";
   const monthName = monthAr(thisPeriod()).split(" ")[0];
 
-  const attention = k.arrearsCount > 0 || k.flaggedUnits > 0 || expiring.length > 0;
+  const attention = k.arrearsCount > 0 || k.flaggedUnits > 0;
 
   return (
     <div className="space-y-3">
@@ -172,11 +161,6 @@ export default function DashboardPage() {
               <Row href="/finances" icon="alert" tone="rose"
                 title={`${num(k.arrearsCount)} مستأجر لم يسدّد`}
                 right={<Money v={k.arrearsTotal} size="sm" tone="#b3303b" />} />
-            )}
-            {allow("contracts.view") && expiring.length > 0 && (
-              <Row href="/finances?tab=contracts" icon="calendar" tone="gold"
-                title={`${num(expiring.length)} عقد يقارب على الانتهاء`}
-                right={<span className="t-xs font-bold text-[var(--gold-600)]">{dateShort(expiring[0].c.endDate)}</span>} />
             )}
             {allow("flags.view") && k.flaggedUnits > 0 && (
               <Row href="/flags" icon="alert" tone="navy"

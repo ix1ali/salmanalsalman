@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { AppData } from "./types";
 import { buildSeed } from "./seed";
 import { uid } from "./crypto";
+import { normalizeContract } from "./contracts";
 import { allKeys, delBlob } from "./idb";
 import { CLOUD, cloudError, sb } from "./cloud";
 import { REALTIME_TABLES, emptyData, fetchAll, fetchTable, pushAll, pushDiff } from "./cloudData";
@@ -139,6 +140,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // ترقية المخطط: البيانات الأقدم من الإصدار الحالي تُبنى من جديد
       if (!loaded || !loaded.users?.length || (loaded.version ?? 1) < 5) loaded = await buildSeed();
       if (cancelled) return;
+      loaded = { ...loaded, contracts: loaded.contracts.map(normalizeContract) };
       setData(loaded);
       pickBuilding(loaded);
       setReady(true);
