@@ -8,6 +8,7 @@ import { scope } from "@/lib/selectors";
 import { markPaid, unmarkPaid } from "@/lib/payments";
 import { monthContracts, removeContract } from "@/lib/contracts";
 import ContractEditor from "@/components/ContractEditor";
+import ContractPrint from "@/components/ContractPrint";
 import {
   EXPENSE_ORDER, KWD, amount, dateShort, expenseLabel, methodLabel, monthAr, num, thisPeriod,
 } from "@/lib/format";
@@ -18,7 +19,7 @@ import { Icon } from "@/components/Icons";
 import { ExpenseForm } from "@/components/forms";
 import IssueDoc from "@/components/IssueDoc";
 import {
-  CollectionSheetDoc, ContractDoc, PrintOverlay, ReceiptSheet, ReceiptsBatchDoc,
+  CollectionSheetDoc, PrintOverlay, ReceiptSheet, ReceiptsBatchDoc,
   receiptOfContract, receiptOfPayment, type ReceiptFields,
 } from "@/components/print";
 import type { Contract, Expense, ExpenseCategory, Payment } from "@/lib/types";
@@ -487,12 +488,9 @@ export default function FinancesPage() {
         {doc?.k === "receipt" && <ReceiptSheet f={doc.f} />}
       </PrintOverlay>
 
-      <PrintOverlay
-        open={doc?.k === "contract"} onClose={() => setDoc(null)}
-        fileTitle={doc?.k === "contract" ? `عقد ${doc.c.no}` : ""}
-      >
-        {doc?.k === "contract" && <ContractDoc contract={doc.c} />}
-      </PrintOverlay>
+      {doc?.k === "contract" && (
+        <ContractPrint contract={doc.c} fileTitle={`عقد ${doc.c.no}`} onClose={() => setDoc(null)} />
+      )}
 
       {editing && (
         <ContractEditor contract={editing.c} unitId={editing.unitId} period={period} onClose={() => setEditing(null)} />

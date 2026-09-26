@@ -380,7 +380,9 @@ export function ContractSheet({ f }: { f: ContractFields }) {
 }
 
 /** العقد معبَّأ من عقد مسجّل في النظام. */
-export function ContractDoc({ contract, signedAt }: { contract: Contract; signedAt?: string }) {
+export function ContractDoc({
+  contract, signedAt, startDate, endDate,
+}: { contract: Contract; signedAt?: string; startDate?: string; endDate?: string }) {
   const { data } = useStore();
   const tenant = data.tenants.find((t) => t.id === contract.tenantId);
   const { unit, floor, building } = useUnitCtx(contract.unitId);
@@ -400,8 +402,8 @@ export function ContractDoc({ contract, signedAt }: { contract: Contract; signed
         floor: floor?.name ?? "",
         unitNo: unit?.number ?? "",
         duration: contract.durationText || "سنة",
-        startDate: contract.startDate,
-        endDate: "",
+        startDate: startDate ?? contract.startDate,
+        endDate: endDate ?? "",
         rent: contract.rent,
         deposit: contract.deposit,
         dueDay: contract.dueDay || data.settings.dueDay,

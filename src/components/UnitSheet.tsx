@@ -9,9 +9,10 @@ import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { PaymentForm, UnitForm } from "./forms";
 import ContractEditor from "./ContractEditor";
+import ContractPrint from "./ContractPrint";
 import { removeContract, vacateContract } from "@/lib/contracts";
 import { markPaid, unmarkPaid } from "@/lib/payments";
-import { ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
+import { EvictionDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
 import { KWD, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
 import { tenantOfUnit, unitBalance } from "@/lib/selectors";
 import { unitColor } from "@/lib/unitColor";
@@ -556,13 +557,9 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         <EvictionDoc unitId={unit.id} tenantId={tenant?.id} date={vacateDate} />
       </PrintOverlay>
 
-      <PrintOverlay
-        open={printKind === "contract"}
-        onClose={() => setPrintKind(null)}
-        fileTitle={contract ? `عقد إيجار ${contract.no}` : ""}
-      >
-        {contract && <ContractDoc contract={contract} />}
-      </PrintOverlay>
+      {printKind === "contract" && contract && (
+        <ContractPrint contract={contract} fileTitle={`عقد إيجار ${contract.no}`} onClose={() => setPrintKind(null)} />
+      )}
 
       {/* الوصل جاهز دائمًا: من دفعة الشهر إن سُجِّلت، وإلا وصل بقيمة العقد للتوزيع */}
       <PrintOverlay
