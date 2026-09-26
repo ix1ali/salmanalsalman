@@ -6,13 +6,17 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "./Toast";
 import { Field, MonthPicker, Select, Sheet, TextInput } from "./ui";
 import { Icon } from "./Icons";
-import { addContract, contractInput, editContract, monthContracts, startPeriod, type ContractInput } from "@/lib/contracts";
-import { methodLabel, monthAr } from "@/lib/format";
+import {
+  addContract, contractInput, editContract, entryDate, entryDateError, monthContracts, moveEntry, startPeriod,
+  type ContractInput,
+} from "@/lib/contracts";
+import { dateShort, methodLabel, monthAr, thisPeriod, todayISO } from "@/lib/format";
 import type { Contract, PayMethod } from "@/lib/types";
 
 /**
  * نموذج واحد لإضافة مستأجر على وحدة أو تعديل بياناته — بلا تواريخ نهاية.
- * كل حفظ يسري من الشهر المختار وما بعده؛ الأشهر السابقة تبقى كما كانت.
+ * «تاريخ الدخول» يحدد أول شهر يظهر فيه المستأجر، ويمكن تعديله لاحقًا.
+ * تغيير الإيجار وحده يُسأل عن الشهر الذي يسري منه؛ الأشهر السابقة تبقى بالإيجار القديم.
  */
 export default function ContractEditor({
   contract, unitId, period, onClose,
@@ -22,7 +26,10 @@ export default function ContractEditor({
   const toast = useToast();
 
   const [f, setF] = useState<ContractInput>(() => contractInput(data, contract, unitId));
-  const [from, setFrom] = useState(period);
+  const firstEntry = contract ? entryDate(data, contract) : "";
+  const [entry, setEntry] = useState(() => firstEntry || (period === thisPeriod() ? todayISO() : `${period}-01`));
+  const [rentFrom, setRentFrom] = useState(period);
+  const from = entry.slice(0, 7);
   const [more, setMore] = useState(false);
   const set = <K extends keyof ContractInput>(k: K, v: ContractInput[K]) => setF((p) => ({ ...p, [k]: v }));
 
@@ -36,16 +43,30 @@ export default function ContractEditor({
   }, [contract, data.contracts, data.units, activeBuilding, from, unitId]);
 
   const unit = data.units.find((u) => u.id === f.unitId);
-  const splits = contract && from > startPeriod(contract);
+  const rentChanged = !!contract && (+f.rent || 0) !== contract.rent;
+  const entryChanged = !!contract && entry !== firstEntry;
+  const splits = rentChanged && rentFrom > startPeriod(contract!);
 
   const save = () => {
     if (!f.unitId || !unit) return toast("اختر الشقة", "error");
     if (!f.name.trim()) return toast("اكتب اسم المستأجر", "error");
+    if (!entry) return toast("اختر تاريخ الدخول", "error");
+    if (entryChanged) {
+      const err = entryDateError(data, contract!.id, entry);
+      if (err) return toast(err, "error");
+    }
     update(
-      (d) => (contract ? editContract(d, contract.id, f, from) : addContract(d, f, from)),
+      (d) => {
+        if (!contract) return void addContract(d, f, entry);
+        if (entryChanged) moveEntry(d, contract.id, entry);
+        const cur = d.contracts.find((x) => x.id === contract.id);
+        if (!cur) return;
+        // تصحيح البيانات يسري على العقد كله؛ الإيجار الجديد من الشهر المختار فقط
+        editContract(d, cur.id, f, rentChanged ? rentFrom : startPeriod(cur));
+      },
       {
         action: contract ? "تعديل مستأجر" : "إضافة مستأجر",
-        detail: `شقة ${unit.number} — ${f.name.trim()} — من ${monthAr(from)}`,
+        detail: `شقة ${unit.number} — ${f.name.trim()} — الدخول ${dateShort(entry)}${splits ? ` — الإيجار من ${monthAr(rentFrom)}` : ""}`,
         actor: user?.username,
       }
     );
@@ -66,13 +87,13 @@ export default function ContractEditor({
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={contract ? "التعديل يسري من شهر" : "يبدأ من شهر"} required className="sm:col-span-2">
-          <div><MonthPicker value={from} onChange={setFrom} /></div>
+        <Field label="تاريخ الدخول" required className="sm:col-span-2">
+          <TextInput type="date" value={entry} onChange={(e) => setEntry(e.target.value)} />
         </Field>
         <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)] sm:col-span-2">
-          {splits
-            ? `ما قبل ${monthAr(from)} يبقى كما هو، والتعديل يظهر من ${monthAr(from)} وما بعده.`
-            : `يظهر اسمه من ${monthAr(from)} وما بعده فقط — في الكشف والشقق والمستأجرين — ولا يظهر في الأشهر السابقة.`}
+          {entry
+            ? `يظهر اسمه من ${monthAr(from)} وما بعده فقط — في الكشف والشقق والمستأجرين — ولا يظهر في الأشهر السابقة.`
+            : "اختر تاريخ دخول المستأجر."}
         </p>
 
         {!contract && (
@@ -106,6 +127,19 @@ export default function ContractEditor({
         <Field label="الرقم المدني">
           <TextInput value={f.civilId} onChange={(e) => set("civilId", e.target.value.replace(/\D/g, "").slice(0, 12))} dir="ltr" inputMode="numeric" />
         </Field>
+
+        {rentChanged && (
+          <>
+            <Field label="الإيجار الجديد يسري من شهر" className="sm:col-span-2">
+              <div><MonthPicker value={rentFrom} onChange={setRentFrom} /></div>
+            </Field>
+            <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)] sm:col-span-2">
+              {splits
+                ? `ما قبل ${monthAr(rentFrom)} يبقى بالإيجار القديم ${contract!.rent} د.ك، والجديد من ${monthAr(rentFrom)} وما بعده.`
+                : "الإيجار الجديد يسري على العقد من تاريخ الدخول."}
+            </p>
+          </>
+        )}
 
         <button
           type="button"

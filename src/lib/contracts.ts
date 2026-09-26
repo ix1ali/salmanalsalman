@@ -1,6 +1,6 @@
 import type { AppData, Contract, PayMethod, Tenant } from "./types";
 import { uid } from "./crypto";
-import { thisPeriod } from "./format";
+import { monthAr, thisPeriod } from "./format";
 
 /**
  * العقود بالشهر — لا بتاريخ نهاية.
@@ -167,10 +167,65 @@ function endBefore(d: AppData, c: Contract, from: string) {
   d.payments = d.payments.filter((p) => !(p.contractId === c.id && p.period >= from));
 }
 
-/** مستأجر جديد على وحدة، يسري من الشهر `from` وما بعده. */
-export function addContract(d: AppData, f: ContractInput, from: string): Contract | undefined {
+/**
+ * أول نسخة من إقامة المستأجر في الوحدة: تعديل الإيجار من شهر معيّن يقسم العقد لنسخ
+ * متتالية، فنرجع للخلف ما دامت النسخة السابقة لنفس المستأجر وتنتهي قبلها مباشرة.
+ */
+export function firstVersion(d: AppData, c: Contract): Contract {
+  let cur = c;
+  for (;;) {
+    const before = prevPeriod(startPeriod(cur));
+    const prev = d.contracts.find((x) =>
+      x.id !== cur.id && x.unitId === cur.unitId && x.tenantId === cur.tenantId &&
+      !isOpen(x) && x.endDate.slice(0, 7) === before);
+    if (!prev) return cur;
+    cur = prev;
+  }
+}
+
+/** تاريخ دخول المستأجر: بداية أول نسخة من عقده. */
+export const entryDate = (d: AppData, c: Contract) => firstVersion(d, c).startDate;
+
+/** سبب رفض تغيير تاريخ الدخول، أو لا شيء إن كان ممكنًا. */
+export function entryDateError(d: AppData, contractId: string, date: string): string | undefined {
+  const c = d.contracts.find((x) => x.id === contractId);
+  if (!c || !date) return "اختر تاريخ الدخول";
+  const first = firstVersion(d, c);
+  const p = date.slice(0, 7);
+  if (!isOpen(first) && p > endPeriod(first))
+    return `تاريخ الدخول لا يكون بعد ${monthAr(first.endDate.slice(0, 7))} — بعده يبدأ تعديل الإيجار المسجَّل`;
+  const blocker = d.contracts.find((x) =>
+    x.unitId === c.unitId && x.id !== first.id && startPeriod(x) < startPeriod(first) &&
+    startPeriod(x) >= p && endPeriod(x) >= p);
+  if (blocker) {
+    const t = d.tenants.find((x) => x.id === blocker.tenantId);
+    return `الشقة كانت مؤجرة لـ ${t?.name ?? "مستأجر آخر"} في ذلك الوقت`;
+  }
+}
+
+/**
+ * يغيّر تاريخ دخول المستأجر: يظهر في الكشف من شهر الدخول الجديد وما بعده.
+ * المستأجر السابق على الشقة (إن وُجد) ينتهي عقده قبل هذا الشهر.
+ */
+export function moveEntry(d: AppData, contractId: string, date: string) {
+  const c = d.contracts.find((x) => x.id === contractId);
+  if (!c || entryDateError(d, contractId, date)) return;
+  const first = firstVersion(d, c);
+  const p = date.slice(0, 7);
+  d.contracts
+    .filter((x) => x.unitId === c.unitId && x.id !== first.id && startPeriod(x) < p && endPeriod(x) >= p && startPeriod(x) < startPeriod(first))
+    .forEach((x) => endBefore(d, x, p));
+  first.startDate = date;
+  first.firstRentedAt = date;
+  syncTenant(d, first.tenantId);
+  syncUnit(d, c.unitId);
+}
+
+/** مستأجر جديد على وحدة، يدخل بتاريخ `date` ويظهر من شهره وما بعده. */
+export function addContract(d: AppData, f: ContractInput, date: string): Contract | undefined {
   const unit = d.units.find((u) => u.id === f.unitId);
   if (!unit) return;
+  const from = date.slice(0, 7);
   // أي عقد على الوحدة نفسها يتوقف قبل هذا الشهر
   d.contracts
     .filter((c) => c.unitId === unit.id && (covers(c, from) || startPeriod(c) > from))
@@ -185,9 +240,9 @@ export function addContract(d: AppData, f: ContractInput, from: string): Contrac
     buildingId: unit.buildingId,
     unitId: unit.id,
     tenantId: tenant.id,
-    startDate: `${from}-01`,
+    startDate: date,
     endDate: "",
-    firstRentedAt: `${from}-01`,
+    firstRentedAt: date,
     dueDay: d.settings.dueDay || 5,
     ...contractPart(f),
     status: "active",

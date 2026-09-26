@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Field, Sheet, TextInput } from "./ui";
 import { Icon } from "./Icons";
 import { ContractDoc, PrintOverlay } from "./print";
+import { useStore } from "@/lib/store";
+import { entryDate } from "@/lib/contracts";
 import type { Contract } from "@/lib/types";
 
 /** نهاية العقد الافتراضية: سنة كاملة من تاريخ البداية (اليوم السابق لنفس التاريخ بعد سنة). */
@@ -19,8 +21,10 @@ export function yearAfter(start: string) {
  * معبّأً بها للطباعة.
  */
 export default function ContractPrint({ contract, onClose }: { contract: Contract; onClose: () => void }) {
-  const [start, setStart] = useState(contract.startDate);
-  const [end, setEnd] = useState(() => yearAfter(contract.startDate));
+  const { data } = useStore();
+  // البداية المقترحة: تاريخ دخول المستأجر
+  const [start, setStart] = useState(() => entryDate(data, contract));
+  const [end, setEnd] = useState(() => yearAfter(start));
   const [show, setShow] = useState(false);
 
   if (show) {
