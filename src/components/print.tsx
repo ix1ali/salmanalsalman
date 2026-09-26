@@ -317,8 +317,8 @@ export function ContractSheet({ f }: { f: ContractFields }) {
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: ".3em 1.5em", marginBottom: ".4em", fontWeight: 700 }}>
-          <span>في الكويت اليوم : <Fill>{dayName(f.signedAt)}</Fill></span>
-          <span>الموافق : <Fill>{dateOrBlank(f.signedAt)}</Fill></span>
+          <span>في الكويت اليوم : <Fill>{dayName(f.startDate)}</Fill></span>
+          <span>الموافق : <Fill>{dateOrBlank(f.startDate)}</Fill></span>
           <span>تحرر وتم الاتفاق بين كل من الطرفين</span>
         </div>
 
@@ -483,65 +483,65 @@ export function ReceiptSheet({ f, compact = false }: { f: ReceiptFields; compact
       {/* --------------------------- المبلغ والتاريخ --------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: 14 }}>
         <span className="flex items-center gap-2">
+          <span style={{ ...box, minWidth: Math.round(S.boxW * 0.8), fontSize: S.label }}>التاريخ</span>
+          <span className="num" style={{ fontSize: S.num - 3, fontWeight: 800 }}>{f.date ? dateShort(f.date) : NB}</span>
+        </span>
+        <span className="flex items-center gap-2">
           <span className="num" style={{ ...box, minWidth: Math.round(S.boxW * 0.62) }}>{fils ? num(fils) : NB}</span>
           <span style={{ fontSize: S.label, fontWeight: 700 }}>فلس</span>
           <span className="num" style={box}>{f.amount ? num(dinars) : NB}</span>
           <span style={{ fontSize: S.label, fontWeight: 700 }}>دينار</span>
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="num" style={{ fontSize: S.num - 3, fontWeight: 800 }}>{f.date ? dateShort(f.date) : NB}</span>
-          <span style={{ ...box, minWidth: Math.round(S.boxW * 0.8), fontSize: S.label }}>التاريخ</span>
         </span>
       </div>
 
       {/* ------------------------------ بنود الوصل ------------------------------ */}
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <colgroup>
-          <col style={{ width: "14%" }} />
-          <col style={{ width: "30%" }} />
-          <col style={{ width: "10%" }} />
-          <col style={{ width: "10.5%" }} />
-          <col style={{ width: "13.5%" }} />
           <col style={{ width: "22%" }} />
+          <col style={{ width: "13.5%" }} />
+          <col style={{ width: "10.5%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "30%" }} />
+          <col style={{ width: "14%" }} />
         </colgroup>
         <tbody>
           <tr>
-            <td style={enCell}>Received From</td>
-            <td style={vCell} colSpan={4}>{f.from || NB}</td>
             <td style={arCell}>وصلنا من السيد / السادة</td>
+            <td style={vCell} colSpan={4}>{f.from || NB}</td>
+            <td style={enCell}>Received From</td>
           </tr>
           <tr>
-            <td style={enCell}>The Sum of K.D</td>
+            <td style={arCell}>مبلغ وقدره</td>
             <td style={vCell} colSpan={4}>
               {f.amount
                 ? `${amountInWords(dinars)} دينار كويتي${fils ? ` و${num(fils)} فلسًا` : ""} فقط لاغير`
                 : NB}
             </td>
-            <td style={arCell}>مبلغ وقدره</td>
+            <td style={enCell}>The Sum of K.D</td>
           </tr>
           <tr>
-            <td style={enCell}>Bank</td>
-            <td style={vCell}>{f.bank || NB}</td>
-            <td style={{ ...arCell, fontSize: S.label - 1 }}>على بنك</td>
-            <td style={{ ...enCell, fontSize: S.label - 2, whiteSpace: "normal" }}>Cash / Cheque No</td>
-            <td style={vCell}>{f.method || NB}</td>
             <td style={arCell}>نقدا / شيك رقم</td>
+            <td style={vCell}>{f.method || NB}</td>
+            <td style={{ ...enCell, fontSize: S.label - 2, whiteSpace: "normal" }}>Cash / Cheque No</td>
+            <td style={{ ...arCell, fontSize: S.label - 1 }}>على بنك</td>
+            <td style={vCell}>{f.bank || NB}</td>
+            <td style={enCell}>Bank</td>
           </tr>
           <tr>
-            <td style={enCell}>Of Rent</td>
-            <td style={vCell} colSpan={4}>{f.unitNo || NB}</td>
             <td style={arCell}>وذلك عن ايجار</td>
+            <td style={vCell} colSpan={4}>{f.unitNo || NB}</td>
+            <td style={enCell}>Of Rent</td>
           </tr>
           <tr>
-            <td style={enCell}>Month Of</td>
-            <td style={vCell} colSpan={4}>{f.monthText || NB}</td>
             <td style={arCell}>عن شهر</td>
+            <td style={vCell} colSpan={4}>{f.monthText || NB}</td>
+            <td style={enCell}>Month Of</td>
           </tr>
           {f.notes && (
             <tr>
-              <td style={enCell}>Notes</td>
-              <td style={{ ...vCell, color: INK }} colSpan={4}>{f.notes}</td>
               <td style={arCell}>ملاحظات</td>
+              <td style={{ ...vCell, color: INK }} colSpan={4}>{f.notes}</td>
+              <td style={enCell}>Notes</td>
             </tr>
           )}
         </tbody>

@@ -321,9 +321,6 @@ function ContractFormSheet({ onClose }: { onClose: () => void }) {
             <Field label="يوم الاستحقاق">
               <TextInput type="number" min={1} max={28} value={f.dueDay} onChange={(e) => set("dueDay", +e.target.value)} />
             </Field>
-            <Field label="تاريخ تحرير العقد">
-              <TextInput type="date" value={f.signedAt} onChange={(e) => set("signedAt", e.target.value)} />
-            </Field>
           </div>
 
           <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)]">

@@ -128,9 +128,6 @@ export default function ContractEditor({
             <Field label="مدة العقد كتابةً">
               <TextInput value={f.durationText} onChange={(e) => set("durationText", e.target.value)} placeholder="سنة" />
             </Field>
-            <Field label="تاريخ تحرير العقد">
-              <TextInput type="date" value={f.signedAt} onChange={(e) => set("signedAt", e.target.value)} />
-            </Field>
             <Field label="طريقة الدفع">
               <Select value={f.payMethod} onChange={(e) => set("payMethod", e.target.value as PayMethod)}>
                 {(Object.keys(methodLabel) as PayMethod[]).map((m) => <option key={m} value={m}>{methodLabel[m]}</option>)}
