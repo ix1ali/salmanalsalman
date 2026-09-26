@@ -1,5 +1,5 @@
 import type { AppData, Contract, Expense, Payment, Tenant, Unit } from "./types";
-import { monthContracts, unitContract } from "./contracts";
+import { currentContract, monthContracts } from "./contracts";
 
 export interface Scope {
   units: Unit[];
@@ -167,8 +167,9 @@ export function floorStats(data: AppData, buildingId: string): FloorStat[] {
     .sort((a, b) => b.level - a.level);
 }
 
+/** مستأجر الوحدة هذا الشهر — من يبدأ في شهر لاحق لا يظهر قبله. */
 export function tenantOfUnit(data: AppData, unitId: string) {
-  const c = unitContract(data, unitId);
+  const c = currentContract(data, unitId);
   if (!c) return { contract: undefined, tenant: undefined };
   return { contract: c, tenant: data.tenants.find((t) => t.id === c.tenantId) };
 }

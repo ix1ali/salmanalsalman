@@ -66,6 +66,15 @@ export default function ContractEditor({
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={contract ? "التعديل يسري من شهر" : "يبدأ من شهر"} required className="sm:col-span-2">
+          <div><MonthPicker value={from} onChange={setFrom} /></div>
+        </Field>
+        <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)] sm:col-span-2">
+          {splits
+            ? `ما قبل ${monthAr(from)} يبقى كما هو، والتعديل يظهر من ${monthAr(from)} وما بعده.`
+            : `يظهر اسمه من ${monthAr(from)} وما بعده فقط — في الكشف والشقق والمستأجرين — ولا يظهر في الأشهر السابقة.`}
+        </p>
+
         {!contract && (
           <Field label="الشقة" required className="sm:col-span-2">
             <Select
@@ -97,15 +106,6 @@ export default function ContractEditor({
         <Field label="الرقم المدني">
           <TextInput value={f.civilId} onChange={(e) => set("civilId", e.target.value.replace(/\D/g, "").slice(0, 12))} dir="ltr" inputMode="numeric" />
         </Field>
-
-        <Field label="يسري من شهر">
-          <div><MonthPicker value={from} onChange={setFrom} /></div>
-        </Field>
-        <p className="t-xs rounded-lg bg-[var(--surface-2)] p-2.5 leading-relaxed text-[var(--muted)] sm:col-span-2">
-          {splits
-            ? `ما قبل ${monthAr(from)} يبقى كما هو، والتعديل يظهر من ${monthAr(from)} وما بعده.`
-            : `يظهر في الكشف من ${monthAr(from)} ويستمر كل شهر تلقائيًا.`}
-        </p>
 
         <button
           type="button"

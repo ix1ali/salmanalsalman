@@ -18,9 +18,10 @@ import { Icon } from "@/components/Icons";
 import { ExpenseForm } from "@/components/forms";
 import IssueDoc from "@/components/IssueDoc";
 import {
-  CollectionSheetDoc, ContractDoc, PrintOverlay, ReceiptSheet, ReceiptsBatchDoc,
+  CollectionSheetDoc, PrintOverlay, ReceiptSheet, ReceiptsBatchDoc,
   receiptOfContract, receiptOfPayment, type ReceiptFields,
 } from "@/components/print";
+import ContractPrint from "@/components/ContractPrint";
 import type { Contract, Expense, ExpenseCategory, Payment } from "@/lib/types";
 
 type Tab = "sheet" | "receipts" | "contracts" | "expenses" | "issue";
@@ -487,12 +488,7 @@ export default function FinancesPage() {
         {doc?.k === "receipt" && <ReceiptSheet f={doc.f} />}
       </PrintOverlay>
 
-      <PrintOverlay
-        open={doc?.k === "contract"} onClose={() => setDoc(null)}
-        fileTitle={doc?.k === "contract" ? `عقد ${doc.c.no}` : ""}
-      >
-        {doc?.k === "contract" && <ContractDoc contract={doc.c} />}
-      </PrintOverlay>
+      {doc?.k === "contract" && <ContractPrint contract={doc.c} onClose={() => setDoc(null)} />}
 
       {editing && (
         <ContractEditor contract={editing.c} unitId={editing.unitId} period={period} onClose={() => setEditing(null)} />

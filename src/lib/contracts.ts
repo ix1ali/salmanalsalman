@@ -57,6 +57,32 @@ export function monthContracts(contracts: Contract[], period: string): Contract[
   return [...byUnit.values()];
 }
 
+/** عقد الوحدة الساري في الشهر فقط — مستأجر يبدأ لاحقًا لا يظهر قبل شهره. */
+export function currentContract(data: AppData, unitId: string, period = thisPeriod()): Contract | undefined {
+  return monthContracts(data.contracts.filter((c) => c.unitId === unitId), period)[0];
+}
+
+/** هل العقد يبدأ بعد هذا الشهر؟ */
+export const isUpcoming = (c: Contract, period = thisPeriod()) => startPeriod(c) > period;
+
+/**
+ * حالة الوحدات تتبع الشهر الحالي: مشغولة إن كان عليها عقد ساري هذا الشهر.
+ * تُستدعى عند التحميل حتى تنتقل الوحدة لـ«مشغولة» تلقائيًا حين يحلّ شهر المستأجر الجديد.
+ * الوحدات التي لم يُسجَّل عليها أي عقد تبقى كما هي.
+ */
+export function syncUnitStatuses(d: AppData, period = thisPeriod()): AppData {
+  const withContract = new Set(d.contracts.map((c) => c.unitId));
+  const busy = new Set(monthContracts(d.contracts, period).map((c) => c.unitId));
+  return {
+    ...d,
+    units: d.units.map((u) => {
+      if (!withContract.has(u.id) || (u.status !== "occupied" && u.status !== "vacant")) return u;
+      const status = busy.has(u.id) ? "occupied" : "vacant";
+      return u.status === status ? u : { ...u, status };
+    }),
+  };
+}
+
 /** عقد الوحدة في الشهر، وإلا عقدها المفتوح القادم. */
 export function unitContract(data: AppData, unitId: string, period = thisPeriod()): Contract | undefined {
   const own = data.contracts.filter((c) => c.unitId === unitId);
@@ -109,10 +135,10 @@ const nextNo = (d: AppData) => {
   return `ع-${max + 1}`;
 };
 
-/** الوحدة مشغولة ما دام عليها عقد مفتوح. */
+/** الوحدة مشغولة ما دام عليها عقد ساري هذا الشهر (المستأجر القادم لا يشغلها قبل شهره). */
 function syncUnit(d: AppData, unitId: string) {
   const u = d.units.find((x) => x.id === unitId);
-  if (u) u.status = d.contracts.some((c) => c.unitId === unitId && isOpen(c)) ? "occupied" : "vacant";
+  if (u) u.status = currentContract(d, unitId) ? "occupied" : "vacant";
 }
 
 /** المستأجر نشط ما دام له عقد مفتوح؛ ويُحذف إن لم يبقَ له أي عقد. */

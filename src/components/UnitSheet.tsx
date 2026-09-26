@@ -9,11 +9,12 @@ import { Icon } from "./Icons";
 import DocsPanel from "./DocsPanel";
 import { PaymentForm, UnitForm } from "./forms";
 import ContractEditor from "./ContractEditor";
-import { removeContract, vacateContract } from "@/lib/contracts";
+import { isUpcoming, removeContract, unitContract, vacateContract } from "@/lib/contracts";
 import { markPaid, unmarkPaid } from "@/lib/payments";
-import { ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
+import { EvictionDoc, PrintOverlay, ReceiptSheet, receiptOfContract, receiptOfPayment } from "./print";
+import ContractPrint from "./ContractPrint";
 import { KWD, dateShort, kindLabel, methodLabel, monthAr, statusLabel, thisPeriod, todayISO } from "@/lib/format";
-import { tenantOfUnit, unitBalance } from "@/lib/selectors";
+import { unitBalance } from "@/lib/selectors";
 import { unitColor } from "@/lib/unitColor";
 
 export default function UnitSheet({ unitId, onClose }: { unitId: string | null; onClose: () => void }) {
@@ -39,10 +40,10 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
   const unit = useMemo(() => data.units.find((u) => u.id === unitId) ?? null, [data.units, unitId]);
   const floor = data.floors.find((f) => f.id === unit?.floorId);
   const building = data.buildings.find((b) => b.id === unit?.buildingId);
-  const { contract, tenant } = useMemo(
-    () => (unit ? tenantOfUnit(data, unit.id) : { contract: undefined, tenant: undefined }),
-    [data, unit]
-  );
+  // عقد هذا الشهر، وإلا عقد المستأجر القادم (يبدأ في شهر لاحق)
+  const contract = useMemo(() => (unit ? unitContract(data, unit.id) : undefined), [data, unit]);
+  const tenant = contract ? data.tenants.find((t) => t.id === contract.tenantId) : undefined;
+  const upcoming = !!contract && isUpcoming(contract);
   const balance = useMemo(() => (unit ? unitBalance(data, unit.id) : { due: 0, missing: [] }), [data, unit]);
   const payments = useMemo(
     () => data.payments.filter((p) => p.unitId === unitId).sort((a, b) => b.period.localeCompare(a.period)),
@@ -210,7 +211,9 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {/* المستأجر */}
         {tenant && contract ? (
           <div className="card mb-3 p-3">
-            <p className="mb-2 text-[13px] font-bold">المستأجر</p>
+            <p className="mb-2 text-[13px] font-bold">
+              {upcoming ? `مستأجر قادم — يبدأ من ${monthAr(contract.startDate.slice(0, 7))}` : "المستأجر"}
+            </p>
             <KeyVal k="الاسم" v={tenant.name} icon="user" />
             <KeyVal k="الرقم المدني" v={<span dir="ltr">{tenant.civilId || "—"}</span>} icon="idCard" />
             <KeyVal k="الهاتف" v={<span dir="ltr">{tenant.phone}</span>} icon="phone" />
@@ -246,7 +249,7 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         {contract && (
           <div className="card mb-3 p-3">
             <p className="mb-2 text-[13px] font-bold">العقد</p>
-            <KeyVal k="منذ" v={monthAr(contract.startDate.slice(0, 7))} icon="calendar" />
+            <KeyVal k={upcoming ? "يبدأ من" : "منذ"} v={monthAr(contract.startDate.slice(0, 7))} icon="calendar" />
             <KeyVal k="الإيجار الشهري" v={KWD(contract.rent)} icon="wallet" />
             <KeyVal k="التأمين" v={KWD(contract.deposit)} icon="lock" />
             {allow("contracts.edit") && (
@@ -263,13 +266,18 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
                 >
                   <Icon name="logout" size={14} /> إخلاء الشقة
                 </button>
+                {upcoming && (
+                  <button className="btn btn-ghost btn-sm flex-1" onClick={() => setPrintKind("contract")}>
+                    <Icon name="print" size={14} /> طباعة العقد
+                  </button>
+                )}
               </div>
             )}
           </div>
         )}
 
         {/* الإيجار والمستندات — كل إجراء مستقل عن الآخر */}
-        {contract && allow("finance.view") && (
+        {contract && !upcoming && allow("finance.view") && (
           <div className="panel mb-3">
             <div className="panel-head">
               <span className="panel-title">إيجار {monthAr(thisPeriod())}</span>
@@ -556,13 +564,9 @@ export default function UnitSheet({ unitId, onClose }: { unitId: string | null; 
         <EvictionDoc unitId={unit.id} tenantId={tenant?.id} date={vacateDate} />
       </PrintOverlay>
 
-      <PrintOverlay
-        open={printKind === "contract"}
-        onClose={() => setPrintKind(null)}
-        fileTitle={contract ? `عقد إيجار ${contract.no}` : ""}
-      >
-        {contract && <ContractDoc contract={contract} />}
-      </PrintOverlay>
+      {printKind === "contract" && contract && (
+        <ContractPrint contract={contract} onClose={() => setPrintKind(null)} />
+      )}
 
       {/* الوصل جاهز دائمًا: من دفعة الشهر إن سُجِّلت، وإلا وصل بقيمة العقد للتوزيع */}
       <PrintOverlay

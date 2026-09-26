@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { AppData } from "./types";
 import { buildSeed } from "./seed";
 import { uid } from "./crypto";
-import { normalizeContract } from "./contracts";
+import { normalizeContract, syncUnitStatuses } from "./contracts";
 import { allKeys, delBlob } from "./idb";
 import { CLOUD, cloudError, sb } from "./cloud";
 import { REALTIME_TABLES, emptyData, fetchAll, fetchTable, pushAll, pushDiff } from "./cloudData";
@@ -257,11 +257,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [signedIn, syncing, error]
   );
 
+  // حالة الوحدات تُقرأ حسب الشهر الحالي — المستأجر القادم لا يشغل الشقة قبل شهره
+  const view = useMemo(() => (data ? syncUnitStatuses(data) : null), [data]);
+
   const value = useMemo<StoreCtx | null>(
-    () => (data
-      ? { ready, data, update, activeBuilding, setActiveBuilding, resetAll, exportBackup, importBackup, cloud, seedCloud, reload }
+    () => (view
+      ? { ready, data: view, update, activeBuilding, setActiveBuilding, resetAll, exportBackup, importBackup, cloud, seedCloud, reload }
       : null),
-    [data, ready, update, activeBuilding, setActiveBuilding, resetAll, exportBackup, importBackup, cloud, seedCloud, reload]
+    [view, ready, update, activeBuilding, setActiveBuilding, resetAll, exportBackup, importBackup, cloud, seedCloud, reload]
   );
 
   if (!value) {

@@ -14,9 +14,10 @@ import { Icon } from "@/components/Icons";
 import DocsPanel from "@/components/DocsPanel";
 import { PaymentForm, TenantForm } from "@/components/forms";
 import {
-  ContractDoc, EvictionDoc, PrintOverlay, ReceiptSheet, TenantStatementDoc, TenantsRegisterDoc,
+  EvictionDoc, PrintOverlay, ReceiptSheet, TenantStatementDoc, TenantsRegisterDoc,
   receiptOfContract, receiptOfPayment,
 } from "@/components/print";
+import ContractPrint from "@/components/ContractPrint";
 
 type Tab = "all" | "unpaid";
 
@@ -170,10 +171,9 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
 
   /** الطباعة: تُختار الورقة أولًا ثم تاريخها، ثم تُعرض للطباعة. */
   const [pick, setPick] = useState<null | "receipt" | "contract" | "eviction">(null);
-  const [doc, setDoc] = useState<null | "receipt" | "contract" | "eviction">(null);
+  const [doc, setDoc] = useState<null | "receipt" | "eviction">(null);
   const [rcMonth, setRcMonth] = useState(thisPeriod());
   const [rcDate, setRcDate] = useState(todayISO());
-  const [ctDate, setCtDate] = useState(todayISO());
   const [evDate, setEvDate] = useState(todayISO());
 
   const tenant = useMemo(() => data.tenants.find((t) => t.id === id) ?? null, [data.tenants, id]);
@@ -272,7 +272,7 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
           <Panel title="الطباعة" className="mb-3" flush>
             {([
               ["receipt", "receipt", "طباعة الوصل", "تختار الشهر وتاريخ الوصل"],
-              ["contract", "file", "طباعة العقد", "تختار تاريخ تحرير العقد"],
+              ["contract", "file", "طباعة العقد", "تختار تاريخ البداية والنهاية"],
               ["eviction", "logout", "طباعة طلب الإخلاء", "تختار تاريخ الإخلاء"],
             ] as const).map(([k, icon, title, sub]) => (
               <button key={k} onClick={() => setPick(k)} className="row row-link">
@@ -435,24 +435,8 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
         </Sheet>
       )}
 
-      {/* اختيار تاريخ تحرير العقد */}
-      {pick === "contract" && (
-        <Sheet
-          open onClose={() => setPick(null)} title="طباعة العقد"
-          footer={
-            <div className="flex gap-2">
-              <button className="btn btn-primary flex-1" onClick={() => { setPick(null); setDoc("contract"); }}>
-                <Icon name="print" size={15} /> عرض وطباعة
-              </button>
-              <button className="btn btn-ghost" onClick={() => setPick(null)}>إلغاء</button>
-            </div>
-          }
-        >
-          <Field label="تاريخ تحرير العقد" required>
-            <TextInput type="date" value={ctDate} onChange={(e) => setCtDate(e.target.value)} />
-          </Field>
-        </Sheet>
-      )}
+      {/* العقد: تاريخ البداية والنهاية ثم الطباعة */}
+      {pick === "contract" && active && <ContractPrint contract={active} onClose={() => setPick(null)} />}
 
       {/* اختيار تاريخ الإخلاء */}
       {pick === "eviction" && (
@@ -490,13 +474,6 @@ function TenantSheet({ id, onClose }: { id: string | null; onClose: () => void }
             }}
           />
         )}
-      </PrintOverlay>
-
-      <PrintOverlay
-        open={doc === "contract"} onClose={() => setDoc(null)}
-        fileTitle={`عقد — ${tenant.name}`}
-      >
-        {active && <ContractDoc contract={active} signedAt={ctDate} />}
       </PrintOverlay>
 
       <PrintOverlay
