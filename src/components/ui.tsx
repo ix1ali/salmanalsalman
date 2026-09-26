@@ -244,8 +244,30 @@ export function Field({
   );
 }
 
+/** خانات التاريخ والشهر والوقت تفتح التقويم بمجرد الضغط بدل الكتابة من لوحة المفاتيح. */
+const PICKER_TYPES = new Set(["date", "month", "week", "time", "datetime-local"]);
+
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`input ${props.className ?? ""}`} />;
+  const picker = !!props.type && PICKER_TYPES.has(props.type);
+  if (!picker) return <input {...props} className={`input ${props.className ?? ""}`} />;
+  const open = (el: HTMLInputElement) => {
+    if (el.readOnly || el.disabled) return;
+    try { el.showPicker?.(); } catch { /* متصفح لا يدعم showPicker */ }
+  };
+  return (
+    <input
+      {...props}
+      className={`input cursor-pointer ${props.className ?? ""}`}
+      onClick={(e) => { props.onClick?.(e); open(e.currentTarget); }}
+      onKeyDown={(e) => {
+        props.onKeyDown?.(e);
+        // لا كتابة يدوية: Enter أو المسافة تفتح التقويم، وTab للتنقل
+        if (e.key === "Tab" || e.key === "Escape") return;
+        e.preventDefault();
+        if (e.key === "Enter" || e.key === " ") open(e.currentTarget);
+      }}
+    />
+  );
 }
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`select ${props.className ?? ""}`} />;
